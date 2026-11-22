@@ -32,7 +32,7 @@ export const Act4Ignition: React.FC = () => {
           <p className="font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#111114] mb-3">
             {CONTENT.act4.eyebrow}
           </p>
-          <h2 className="ignition-headline k-font-bricolage font-extrabold uppercase text-[#111114]">
+          <h2 className="ignition-headline k-font-bricolage font-extrabold uppercase text-[#111114] doppler-heading doppler-shear">
             <KineticText text={CONTENT.act4.headline} font="bricolage" />
           </h2>
         </div>

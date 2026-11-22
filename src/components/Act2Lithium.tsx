@@ -146,8 +146,8 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           </div>
         </div>
 
-        {/* Giant Roboto Flex Headline (wdth 128, wght 900, slnt -6) */}
-        <h2 className="stage-headline k-font-roboto-flex uppercase break-words">
+        {/* Giant Roboto Flex Headline (wdth 128, wght 900, slnt -6 + live Doppler shear) */}
+        <h2 className="stage-headline k-font-roboto-flex uppercase break-words doppler-heading">
           <KineticText text={stage.title} font="roboto-flex" />
         </h2>
       </div>

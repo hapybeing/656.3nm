@@ -29,6 +29,24 @@ export const CONTENT = {
     topTelemetry: 'λ 656.28nm  //  16,000 FPS  //  ST40-OPTICAL',
     coordsPlaceholder: 'X: 0000 / Y: 0000',
     spectralBarColors: ['#FF1F71', '#FF2A2A', '#00E676', '#00D8FF'] as const,
+    actMeta: {
+      '1': { label: '01/05', wavelength: '656.28nm', swatch: '#FF1F71', ink: 'dark' as const },
+      '2': { label: '02/05', wavelength: '656.28nm', swatch: '#FF1F71', ink: 'dark' as const },
+      '3': { label: '03/05', wavelength: '434.05nm', swatch: '#EAFF2B', ink: 'light' as const },
+      '4': { label: '04/05', wavelength: '486.14nm', swatch: '#1822FF', ink: 'dark' as const },
+      '5': { label: '05/05', wavelength: '656.30nm', swatch: '#FFB800', ink: 'light' as const },
+    },
+  },
+  act0: {
+    label: 'SHUTTER CALIBRATION // ST40',
+    unit: 'FPS',
+    targetFps: 16000,
+    lasers: [
+      { wavelength: '656nm', color: '#FF1F71', topPct: 22 },
+      { wavelength: '486nm', color: '#00D8FF', topPct: 38 },
+      { wavelength: '434nm', color: '#1822FF', topPct: 62 },
+      { wavelength: '410nm', color: '#6A2BFF', topPct: 78 },
+    ] as const,
   },
   act1: {
     eyebrow: 'ACT 01  //  CORE: 150,000,000 K  //  VISIBLE LIGHT: 0.00%',

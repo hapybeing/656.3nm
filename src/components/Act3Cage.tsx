@@ -40,7 +40,7 @@ export const Act3Cage: React.FC = () => {
       <div className="relative z-10 my-auto py-8 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
         {/* Left Column: Acid Tungsten Headline + Hairline Mode Tabs */}
         <div className="lg:col-span-6 flex flex-col gap-8">
-          <h2 className="cage-headline k-font-bricolage font-extrabold uppercase text-[#EAFF2B]">
+          <h2 className="cage-headline k-font-bricolage font-extrabold uppercase text-[#EAFF2B] doppler-heading doppler-shear">
             {CONTENT.act3.headlineLines.map((line, idx) => (
               <span key={line} className="block">
                 <KineticText

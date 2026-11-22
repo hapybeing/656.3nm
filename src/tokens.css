@@ -15,6 +15,10 @@
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-kinetic: 'Roboto Flex', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Live Doppler scroll velocity CSS variables updated at 60fps */
+  --doppler-slnt: 0;
+  --doppler-chroma: 0px;
 }
 
 html,
@@ -41,7 +45,7 @@ body {
   font-family: var(--font-display);
   font-variation-settings:
     "opsz" var(--opsz, 96),
-    "wdth" var(--wdth, 88),
+    "wdth" var(--wdth, 92),
     "wght" var(--wght, 800);
 }
 
@@ -60,8 +64,26 @@ body {
 }
 
 .k-char {
-  display: inline-block;
-  font-variation-settings: inherit;
+  display: inline-flex;
+  justify-content: center;
+  align-items: baseline;
+}
+
+.k-font-bricolage .k-char {
+  font-variation-settings:
+    "opsz" var(--opsz, 96),
+    "wdth" var(--wdth, 92),
+    "wght" var(--wght, 800);
+  font-weight: var(--wght, 800);
+}
+
+.k-font-roboto-flex .k-char {
+  font-variation-settings:
+    "opsz" var(--opsz, 144),
+    "slnt" var(--slnt, 0),
+    "wdth" var(--wdth, 125),
+    "wght" var(--wght, 900);
+  font-weight: var(--wght, 900);
 }
 
 /* Strict 0px architectural corner discipline */
@@ -69,11 +91,43 @@ body {
   border-radius: 0px;
 }
 
-/* Swiss poster display scales */
+/* Swiss chrome smooth exponential contrast transition (no CSS ease / ease-in-out) */
+.chrome-ink-transition {
+  transition:
+    color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Velocity-linked Doppler RGB spectral dispersion & kinetic shear */
+.doppler-heading {
+  text-shadow:
+    var(--doppler-chroma, 0px) 0 0 rgba(255, 31, 113, 0.65),
+    calc(var(--doppler-chroma, 0px) * -1) 0 0 rgba(0, 216, 255, 0.65);
+}
+
+.doppler-shear {
+  transform: skewX(calc(var(--doppler-slnt, 0) * 0.42deg));
+  transform-origin: left center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doppler-heading {
+    text-shadow: none;
+  }
+  .doppler-shear {
+    transform: none;
+  }
+}
+
+/* Swiss poster display scales (preserved verbatim from Pass 1) */
 .hero-headline {
   font-size: clamp(3.4rem, 10.8vw, 11rem);
   line-height: 0.84;
   letter-spacing: -0.045em;
+  --opsz: 96;
+  --wdth: 92;
+  --wght: 800;
 }
 
 .stage-headline {
@@ -83,7 +137,7 @@ body {
   --opsz: 144;
   --wdth: 128;
   --wght: 900;
-  --slnt: -6;
+  --slnt: max(-10, calc(-6 + var(--doppler-slnt, 0)));
 }
 
 .cage-headline {
@@ -105,6 +159,12 @@ body {
   --opsz: 96;
   --wdth: 98;
   --wght: 800;
+}
+
+.shutter-counter {
+  font-size: clamp(3.4rem, 11vw, 9.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
 }
 
 /* Focus visibility for keyboard accessibility without rounded glow */

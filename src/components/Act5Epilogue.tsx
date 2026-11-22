@@ -53,7 +53,7 @@ export const Act5Epilogue: React.FC = () => {
       <div className="w-full px-4 sm:px-6 md:px-10 pt-16 sm:pt-24 md:pt-28 pb-12 sm:pb-16 flex flex-col justify-end">
         <div className="w-full flex items-center justify-center overflow-hidden py-4">
           <div
-            className="epilogue-wordmark k-font-bricolage font-extrabold text-[#F6F3EB] select-none text-center whitespace-nowrap"
+            className="epilogue-wordmark k-font-bricolage font-extrabold text-[#F6F3EB] select-none text-center whitespace-nowrap doppler-heading"
             data-testid="epilogue-wordmark"
           >
             <KineticText text={CONTENT.act5.wordmark} font="bricolage" />
