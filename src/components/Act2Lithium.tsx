@@ -37,12 +37,13 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   onSelectStage,
 }) => {
   const rootRef = useRef<HTMLElement | null>(null);
+  const stageRowRef = useRef<HTMLDivElement | null>(null);
   const interferometerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollTriggerRef = useRef<ScrollTrigger | null>(null);
 
   // Stacked flat spectral color plates (layers 1..3 animate GPU clip-path circle wipes)
   const bgLayerRefs = useRef<Array<HTMLDivElement | null>>([]);
-  // Synchronized clipped stage content layers sitting strictly ABOVE the interferometer canvas
+  // Synchronized clipped stage content layers inside dedicated Row 2 (1fr)
   const contentLayerRefs = useRef<Array<HTMLDivElement | null>>([]);
   // Per-stage headline & streak-camera ghost refs
   const stageCharGroupsRef = useRef<Array<HTMLElement[]>>([[], [], [], []]);
@@ -148,8 +149,12 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
 
     let canvasW = 1;
     let canvasH = 1;
+    let row2TopOffset = 120;
     const resizeCanvas = () => {
       const rect = root.getBoundingClientRect();
+      if (stageRowRef.current) {
+        row2TopOffset = stageRowRef.current.getBoundingClientRect().top - rect.top;
+      }
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const nextW = Math.max(1, Math.round(rect.width));
       const nextH = Math.max(1, Math.round(rect.height));
@@ -165,6 +170,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
     resizeCanvas();
     const resizeObserver = new ResizeObserver(resizeCanvas);
     resizeObserver.observe(root);
+    if (stageRowRef.current) resizeObserver.observe(stageRowRef.current);
     window.addEventListener('resize', resizeCanvas, { passive: true });
 
     // Springs for magnetically gliding spectrometer caliper & smooth wavelength frequency shift
@@ -241,17 +247,19 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         wakeRef.current.style.height = `${wakeHeightPct}%`;
       }
 
-      // 3. Synchronized GPU radial clip-path wipes for bg plates & incoming stage content
+      // 3. Synchronized GPU radial clip-path wipes (pixel-locked across full bg plates & Row 2 stage)
       for (let i = 1; i <= 3; i++) {
         const rPct = state.layerClipRadiiPct[i];
-        const key = `${rPct.toFixed(2)}@${state.pelletYPct.toFixed(2)}@${canvasW}x${canvasH}`;
+        const rPx = (rPct / 100) * cssCircleRefLen;
+        const key = `${rPx.toFixed(1)}@${impactY.toFixed(1)}@${row2TopOffset.toFixed(1)}@${canvasW}`;
         if (key !== lastClipKeys[i]) {
           lastClipKeys[i] = key;
-          const clip = `circle(${rPct}% at 50% ${state.pelletYPct}%)`;
+          const bgClip = `circle(${rPx.toFixed(1)}px at ${impactX.toFixed(1)}px ${impactY.toFixed(1)}px)`;
+          const stageClip = `circle(${rPx.toFixed(1)}px at ${impactX.toFixed(1)}px ${(impactY - row2TopOffset).toFixed(1)}px)`;
           const bgLayer = bgLayerRefs.current[i];
-          if (bgLayer) bgLayer.style.clipPath = clip;
+          if (bgLayer) bgLayer.style.clipPath = bgClip;
           const contentLayer = contentLayerRefs.current[i];
-          if (contentLayer) contentLayer.style.clipPath = clip;
+          if (contentLayer) contentLayer.style.clipPath = stageClip;
         }
       }
 
@@ -501,7 +509,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
       data-act="2"
       data-act-ink={isLightInk ? 'light' : 'dark'}
       data-stage-id={activeStage.id}
-      className="relative h-[100svh] min-h-[100svh] w-full overflow-hidden border-b border-[#111114]"
+      className="relative h-[100svh] min-h-[100svh] w-full max-w-full overflow-hidden border-b border-[#111114] box-border pt-[3.25rem] pb-[2.5rem] grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto]"
       style={{ backgroundColor: CONTENT.act2.stages[0].bg }}
     >
       {/* 1. STACKED 4 FULL-BLEED FLAT SPECTRAL COLOR PLATES (z: 1..4) */}
@@ -516,115 +524,28 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           style={{
             backgroundColor: stage.bg,
             zIndex: idx + 1,
-            clipPath: idx === 0 ? undefined : 'circle(0% at 50% 12%)',
+            clipPath: idx === 0 ? undefined : 'circle(0px at 50% 12%)',
           }}
         />
       ))}
 
-      {/* 2. PROCEDURAL 60FPS OPTICAL INTERFEROMETER CANVAS (z: 10 — Strictly Behind Type) */}
+      {/* 2. PROCEDURAL 60FPS OPTICAL INTERFEROMETER CANVAS (z: 4 — Strictly Behind Spine & Type) */}
       <canvas
         ref={interferometerCanvasRef}
-        className="pointer-events-none absolute inset-0 z-[10] w-full h-full"
+        className="pointer-events-none absolute inset-0 z-[4] w-full h-full"
         aria-hidden="true"
         data-testid="act2-interferometer-canvas"
       />
 
-      {/* 3. SYNCHRONIZED CLIPPED STAGE CONTENT LAYERS (z: 15..18 — Razor-Sharp Above Fringes) */}
-      {CONTENT.act2.stages.map((stage, idx) => {
-        const stageIsLight = stage.ink === '#F6F3EB';
-        const strongBorder = stageIsLight ? 'border-[#F6F3EB]' : 'border-[#111114]';
-        return (
-          <div
-            key={`content-${stage.id}`}
-            ref={(el) => {
-              contentLayerRefs.current[idx] = el;
-            }}
-            data-testid={`act2-content-${stage.id}`}
-            className="pointer-events-none absolute inset-0"
-            style={{
-              color: stage.ink,
-              zIndex: 15 + idx,
-              clipPath: idx === 0 ? undefined : 'circle(0% at 50% 12%)',
-            }}
-          >
-            {/* Bounded strictly inside the open visual band between top telemetry strip & bottom spectrometer */}
-            <div className="absolute inset-x-0 top-[102px] sm:top-[114px] bottom-[126px] sm:bottom-[152px] flex flex-col justify-center px-4 sm:px-6 md:px-10">
-              {/* Stage Telemetry Strip + Monumental 3D-Hinged Roboto Flex Headline */}
-              <div className="relative w-full flex flex-col gap-3 sm:gap-5 md:gap-6">
-                <div
-                  className={`grid grid-cols-2 md:grid-cols-4 border ${strongBorder} arch-surface`}
-                  style={{ backgroundColor: stage.bg }}
-                >
-                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-b md:border-b-0 border-r ${strongBorder}`}>
-                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-bold tracking-[0.06em] block">
-                      {stage.code}
-                    </span>
-                  </div>
-                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-b md:border-b-0 md:border-r ${strongBorder}`}>
-                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-bold tracking-[0.06em] block">
-                      {stage.wavelength}
-                    </span>
-                  </div>
-                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-r ${strongBorder}`}>
-                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base tracking-[0.05em] block">
-                      {stage.transition}
-                    </span>
-                  </div>
-                  <div className="px-3 sm:px-4 py-1.5 sm:py-2.5">
-                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-semibold tracking-[0.06em] block">
-                      {stage.energy}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Streak-Camera Kinetic Headline Container */}
-                <div className="relative stage-hinge-perspective">
-                  {/* Hollow Streak-Camera Ghost Trail 2 (farthest behind) */}
-                  <div
-                    ref={(el) => {
-                      ghost2Refs.current[idx] = el;
-                    }}
-                    aria-hidden="true"
-                    className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
-                  >
-                    {stage.title}
-                  </div>
-
-                  {/* Hollow Streak-Camera Ghost Trail 1 (closer) */}
-                  <div
-                    ref={(el) => {
-                      ghost1Refs.current[idx] = el;
-                    }}
-                    aria-hidden="true"
-                    className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
-                  >
-                    {stage.title}
-                  </div>
-
-                  {/* Solid Primary Center-Out Erupting Roboto Flex Headline */}
-                  <h2
-                    data-solid-headline="true"
-                    data-testid={`act2-headline-${stage.id}`}
-                    className="relative stage-headline k-font-roboto-flex uppercase break-words doppler-heading"
-                  >
-                    <KineticText text={stage.title} font="roboto-flex" />
-                  </h2>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* 4. CENTER 1px LITHIUM-DROP SPINE + FLAT SEGMENTED WAKE + PELLET + 2 SVG SHOCKFRONT RINGS */}
+      {/* 3. CENTER 1px LITHIUM-DROP SPINE + WAKE + DIAMOND PELLET + SVG SHOCKFRONT RINGS (z: 5 — Behind Row 2) */}
       <div
-        className="pointer-events-none absolute inset-0 z-[22]"
+        className="pointer-events-none absolute inset-0 z-[5]"
         aria-hidden="true"
       >
         {/* Center vertical 1px spine */}
         <div
           className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px"
-          style={{ backgroundColor: chromeTextColor, opacity: 0.32 }}
+          style={{ backgroundColor: chromeTextColor, opacity: 0.34 }}
         />
 
         {/* Flat Segmented Plasma Wake Trail (zero gradients) */}
@@ -698,19 +619,21 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         </svg>
       </div>
 
-      {/* 4. TOP TELEMETRY RAIL: EYEBROW + LIVE MICROSECOND CLOCK + INTERACTIVE STAGE TABS */}
+      {/* ROW 1: COMPACT 2-LINE HEADER (max ~72px total — Eyebrow + Clock + 4 Tabs + Inline Stage Metadata) */}
       <div
-        className="relative z-[30] w-full px-4 sm:px-6 md:px-10 pt-11 sm:pt-14"
+        className="relative z-[30] w-full min-w-0 px-4 sm:px-6 md:px-10"
         style={{ color: chromeTextColor }}
+        data-testid="act2-header-row"
       >
+        {/* Line 1: Eyebrow + Microsecond Clock + 4 Compact Wavelength Tabs */}
         <div
-          className="w-full border-t pt-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5"
+          className="w-full min-w-0 border-t py-1.5 flex flex-wrap items-center justify-between gap-x-2 sm:gap-x-3 gap-y-1"
           style={{ borderColor: chromeBorderColor }}
         >
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono-lab text-[10px] sm:text-xs tracking-[0.08em]">
-            <span>{CONTENT.act2.eyebrow}</span>
+          <div className="flex-1 flex items-center justify-between sm:justify-start gap-2 sm:gap-3 font-mono-lab text-[9.5px] sm:text-[11px] tracking-[0.07em] min-w-0">
+            <span className="truncate min-w-0">{CONTENT.act2.eyebrow}</span>
             <span
-              className="px-2 py-0.5 border arch-surface font-bold"
+              className="px-1.5 py-0.5 border arch-surface font-bold whitespace-nowrap shrink-0"
               style={{ borderColor: chromeTextColor }}
               data-testid="act2-time-readout"
             >
@@ -719,23 +642,20 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           </div>
 
           <div
-            className="grid grid-cols-2 sm:inline-flex items-stretch border arch-surface"
+            className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex items-stretch border arch-surface shrink-0"
             style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
             role="group"
             aria-label="Spectral emission stage selector"
           >
             {CONTENT.act2.stages.map((item, idx) => {
               const isActive = idx === activeStageIndex;
-              const mobileBorderClass = `${idx % 2 === 0 ? 'border-r' : ''} ${
-                idx < 2 ? 'border-b' : ''
-              } sm:border-b-0 sm:border-r sm:last:border-r-0`;
               return (
                 <button
                   key={item.id}
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => handleTabJump(idx)}
-                  className={`font-mono-lab text-[11px] sm:text-xs font-medium tracking-[0.05em] px-3 sm:px-4 min-h-[34px] sm:min-h-[38px] arch-surface whitespace-nowrap shrink-0 cursor-pointer ${mobileBorderClass}`}
+                  className="font-mono-lab text-[9px] sm:text-[11px] font-medium tracking-[0.02em] sm:tracking-[0.04em] px-1 sm:px-3 min-h-[26px] sm:min-h-[28px] arch-surface whitespace-nowrap text-center cursor-pointer border-r last:border-r-0"
                   style={{
                     borderColor: chromeTextColor,
                     backgroundColor: isActive ? chromeTextColor : 'transparent',
@@ -748,20 +668,97 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
             })}
           </div>
         </div>
+
+        {/* Line 2: Single-Line Inline Active Stage Spectroscopy Metadata */}
+        <div
+          className="w-full border-t border-b py-1 flex items-center justify-between gap-2 font-mono-lab text-[10px] sm:text-xs tracking-[0.07em] whitespace-nowrap overflow-hidden"
+          style={{ borderColor: chromeBorderColor }}
+          data-testid="act2-stage-meta-bar"
+        >
+          <span className="font-bold truncate">
+            {activeStage.code}
+            {'  //  '}
+            {activeStage.wavelength}
+            {'  //  '}
+            {activeStage.transition}
+            {'  //  '}
+            {activeStage.energy}
+          </span>
+          <span className="hidden sm:inline opacity-80 shrink-0">
+            0{activeStageIndex + 1} / 04
+          </span>
+        </div>
       </div>
 
-      {/* 5. BOTTOM LIVE FRAUNHOFER / BALMER EMISSION SPECTROMETER + OSCILLOSCOPE ANALYZER */}
+      {/* ROW 2 (1fr): DEDICATED OPEN TYPOGRAPHY STAGE — ZERO POSSIBLE OVERLAP WITH ROW 1 OR ROW 3 */}
       <div
-        className="absolute bottom-10 sm:bottom-14 left-0 right-0 z-[30] px-4 sm:px-6 md:px-10"
+        ref={stageRowRef}
+        className="relative z-[20] min-h-0 min-w-0 w-full overflow-visible"
+        data-testid="act2-typography-row"
+      >
+        {CONTENT.act2.stages.map((stage, idx) => (
+          <div
+            key={`content-${stage.id}`}
+            ref={(el) => {
+              contentLayerRefs.current[idx] = el;
+            }}
+            data-testid={`act2-content-${stage.id}`}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 sm:px-6 md:px-10"
+            style={{
+              color: stage.ink,
+              zIndex: 20 + idx,
+              clipPath: idx === 0 ? undefined : 'circle(0px at 50% 0px)',
+            }}
+          >
+            {/* Centered Streak-Camera Kinetic Headline Container */}
+            <div className="relative w-full max-w-full stage-hinge-perspective text-center">
+              {/* Hollow Streak-Camera Ghost Trail 2 (farthest behind) */}
+              <div
+                ref={(el) => {
+                  ghost2Refs.current[idx] = el;
+                }}
+                aria-hidden="true"
+                className="absolute inset-0 flex items-center justify-center stage-headline k-font-roboto-flex uppercase text-center break-words streak-ghost opacity-0"
+              >
+                {stage.title}
+              </div>
+
+              {/* Hollow Streak-Camera Ghost Trail 1 (closer) */}
+              <div
+                ref={(el) => {
+                  ghost1Refs.current[idx] = el;
+                }}
+                aria-hidden="true"
+                className="absolute inset-0 flex items-center justify-center stage-headline k-font-roboto-flex uppercase text-center break-words streak-ghost opacity-0"
+              >
+                {stage.title}
+              </div>
+
+              {/* Solid Primary Center-Out Erupting Roboto Flex Headline */}
+              <h2
+                data-solid-headline="true"
+                data-testid={`act2-headline-${idx}`}
+                className="relative stage-headline k-font-roboto-flex uppercase text-center break-words doppler-heading"
+              >
+                <KineticText text={stage.title} font="roboto-flex" />
+              </h2>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ROW 3: SLEEK BOTTOM SPECTROMETER (fixed clamp(68px, 13svh, 110px), z: 10, strictly separated) */}
+      <div
+        className="relative z-[10] w-full min-w-0 px-4 sm:px-6 md:px-10"
         style={{ color: chromeTextColor }}
       >
         <div
-          className="border arch-surface px-3 sm:px-5 pt-1.5 pb-2"
+          className="h-[clamp(68px,13svh,110px)] border arch-surface px-3 sm:px-4 py-1.5 flex flex-col justify-between"
           style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
           data-testid="emission-spectrometer"
         >
           {/* Live SVG Oscilloscope Spectral Intensity Curve */}
-          <div className="relative h-9 sm:h-12 w-full border-b" style={{ borderColor: chromeBorderColor }}>
+          <div className="relative flex-1 min-h-[20px] w-full border-b" style={{ borderColor: chromeBorderColor }}>
             <svg
               viewBox="0 0 1000 54"
               preserveAspectRatio="none"
@@ -790,7 +787,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           </div>
 
           {/* 380nm–700nm Calibrated Fraunhofer/Balmer Barcode + Magnetic Optical Caliper */}
-          <div className="relative h-10 sm:h-12 w-full">
+          <div className="relative flex-1 min-h-[20px] w-full">
             {fraunhoferTicks.map((tick) => {
               const isSelectedEmission = tick.stageId === activeStage.id;
               return (
@@ -827,7 +824,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
             {/* Precision Magnetically Sliding Optical Caliper Bracket */}
             <div
               ref={caliperRef}
-              className="pointer-events-none absolute -top-1 bottom-0 w-4 -translate-x-1/2 border-x-2 border-t-2 arch-surface"
+              className="pointer-events-none absolute -top-0.5 bottom-0 w-3.5 -translate-x-1/2 border-x-2 border-t-2 arch-surface"
               style={{
                 left: '86.34%',
                 borderColor: chromeTextColor,
@@ -837,22 +834,22 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           </div>
 
           {/* Atomic Peak Reference Labels & 380nm–700nm Bounds */}
-          <div className="mt-1.5 flex items-center justify-between gap-2 font-mono-lab text-[10px] sm:text-xs tracking-[0.06em]">
-            <span>{CONTENT.act2.spectrometerBounds.minLabel}</span>
-            <div className="hidden md:flex items-center gap-4 text-[10px] opacity-80">
+          <div className="pt-0.5 flex items-center justify-between gap-2 font-mono-lab text-[9.5px] sm:text-[11px] leading-none tracking-[0.06em] whitespace-nowrap">
+            <span className="shrink-0">{CONTENT.act2.spectrometerBounds.minLabel}</span>
+            <div className="hidden lg:flex items-center gap-3 text-[9.5px] opacity-80 whitespace-nowrap">
               {ATOMIC_EMISSION_PEAKS.map((peak) => (
                 <span
                   key={peak.label}
-                  className={peak.stageId === activeStage.id ? 'font-bold opacity-100 underline underline-offset-4' : ''}
+                  className={peak.stageId === activeStage.id ? 'font-bold opacity-100 underline underline-offset-2' : ''}
                 >
                   {peak.label}
                 </span>
               ))}
             </div>
-            <span ref={specActiveLabelRef} className="font-bold">
+            <span ref={specActiveLabelRef} className="font-bold whitespace-nowrap shrink-0">
               {activeStage.wavelength}
             </span>
-            <span>{CONTENT.act2.spectrometerBounds.maxLabel}</span>
+            <span className="shrink-0">{CONTENT.act2.spectrometerBounds.maxLabel}</span>
           </div>
         </div>
       </div>

@@ -43,6 +43,19 @@ class MotionEngine {
   private prevScrollY = 0;
   private lastDopplerSlnt = 0;
   private lastDopplerChroma = 0;
+  private resizeTimer: number | null = null;
+
+  private handleResize = () => {
+    if (this.resizeTimer !== null) {
+      window.clearTimeout(this.resizeTimer);
+    }
+    this.resizeTimer = window.setTimeout(() => {
+      this.resizeTimer = null;
+      if (this.initialized) {
+        ScrollTrigger.refresh();
+      }
+    }, 120);
+  };
 
   private handlePointerMove = (e: PointerEvent) => {
     this.pointerX = e.clientX;
@@ -115,6 +128,7 @@ class MotionEngine {
     window.addEventListener('touchmove', this.handleTouchMove, { passive: true });
     window.addEventListener('touchend', this.handleTouchEnd, { passive: true });
     window.addEventListener('touchcancel', this.handleTouchEnd, { passive: true });
+    window.addEventListener('resize', this.handleResize, { passive: true });
 
     gsap.ticker.lagSmoothing(0);
 
@@ -209,6 +223,11 @@ class MotionEngine {
     window.removeEventListener('touchmove', this.handleTouchMove);
     window.removeEventListener('touchend', this.handleTouchEnd);
     window.removeEventListener('touchcancel', this.handleTouchEnd);
+    window.removeEventListener('resize', this.handleResize);
+    if (this.resizeTimer !== null) {
+      window.clearTimeout(this.resizeTimer);
+      this.resizeTimer = null;
+    }
 
     document.documentElement.style.setProperty('--doppler-slnt', '0');
     document.documentElement.style.setProperty('--doppler-chroma', '0px');
@@ -226,11 +245,16 @@ class MotionEngine {
     this.lenis?.start();
   }
 
-  public scrollTo(target: string | number | HTMLElement): void {
+  public scrollTo(
+    target: string | number | HTMLElement,
+    options?: { duration?: number; onComplete?: () => void }
+  ): void {
+    const duration = options?.duration ?? 1.15;
     if (this.lenis) {
       this.lenis.scrollTo(target, {
-        duration: 1.15,
+        duration,
         easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)), // expo.out
+        onComplete: options?.onComplete,
       });
       return;
     }
@@ -241,6 +265,9 @@ class MotionEngine {
       window.scrollTo({ top: target, behavior: this.reducedMotion ? 'auto' : 'smooth' });
     } else {
       target.scrollIntoView({ behavior: this.reducedMotion ? 'auto' : 'smooth' });
+    }
+    if (options?.onComplete) {
+      window.setTimeout(options.onComplete, this.reducedMotion ? 50 : Math.round(duration * 1000));
     }
   }
 

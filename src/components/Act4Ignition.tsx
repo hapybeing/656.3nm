@@ -509,7 +509,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
 
     autoTweenRef.current = gsap.to(proxy, {
       ...targets,
-      duration: ignitedRef.current ? 0.85 : 1.05,
+      duration: ignitedRef.current ? 0.85 : 1.1,
       ease: 'expo.inOut',
       onUpdate: () => {
         states[0].norm = proxy.n;
@@ -537,7 +537,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
       data-act="4"
       data-act-ink={isIgnited ? 'light' : 'dark'}
       data-ignited={isIgnited ? 'true' : 'false'}
-      className={`relative min-h-[100svh] w-full flex flex-col justify-center px-4 sm:px-6 md:px-10 pt-16 sm:pt-20 pb-14 sm:pb-16 border-b border-[#111114] chrome-ink-transition ${bgClass}`}
+      className={`relative min-h-[100svh] w-full flex flex-col justify-between px-4 sm:px-6 md:px-10 pt-[3.25rem] pb-[2.75rem] border-b border-[#111114] chrome-ink-transition box-border ${bgClass}`}
     >
       {/* Fullscreen Fixed 260ms Pure-White X-Ray Overexposure Flash + Shockfront Ring */}
       <div
@@ -565,33 +565,45 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         />
       </svg>
 
-      {/* Master 1px-Bordered Dieter Rams Console Frame */}
+      {/* Master 1px-Bordered Unified Single-Viewport Dieter Rams Console Frame */}
       <div
         ref={consoleRef}
-        className={`relative z-10 w-full border arch-surface chrome-ink-transition ${borderClass} ${bgClass}`}
+        data-testid="act4-console-frame"
+        className={`relative z-10 w-full flex-1 flex flex-col justify-between border arch-surface chrome-ink-transition ${borderClass} ${bgClass}`}
       >
-        {/* Top Console Cell: Eyebrow + Live Triple Product + [ AUTO-IGNITE ↗ ] / [ QUENCH ↓ ] Switch */}
-        <div className={`border-b px-4 sm:px-6 md:px-8 py-5 sm:py-6 chrome-ink-transition ${borderClass}`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <p className="font-mono-lab text-[10px] sm:text-xs tracking-[0.08em]">
-                {CONTENT.act4.eyebrow}
-              </p>
-              <span
-                ref={tripleProductRef}
-                data-testid="triple-product-readout"
-                className="font-mono-lab text-[10px] sm:text-xs font-semibold tracking-[0.06em]"
-                style={{ color: isIgnited ? '#FFB800' : '#111114' }}
+        {/* Top Console Bar: Compact Eyebrow + Live Triple Product + Headline (Left) & [ AUTO-IGNITE ↗ ] Switch (Right) */}
+        <div className={`border-b px-4 sm:px-6 md:px-7 py-3 sm:py-4 chrome-ink-transition ${borderClass}`}>
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+            <div className="min-w-0 flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <p className="font-mono-lab text-[9.5px] sm:text-[11px] tracking-[0.07em]">
+                  {CONTENT.act4.eyebrow}
+                </p>
+                <span
+                  ref={tripleProductRef}
+                  data-testid="triple-product-readout"
+                  className="font-mono-lab text-[9.5px] sm:text-[11px] font-semibold tracking-[0.05em]"
+                  style={{ color: isIgnited ? '#FFB800' : '#111114' }}
+                >
+                  P = 5.79 × 10²¹ keV·s·m⁻³  //  T = 12.9 keV
+                </span>
+              </div>
+
+              <h2
+                ref={headlineRef}
+                data-testid="act4-headline"
+                className="ignition-headline k-font-bricolage font-extrabold uppercase"
+                style={{ color: isIgnited ? '#F6F3EB' : '#111114' }}
               >
-                P = 5.79 × 10²¹ keV·s·m⁻³  //  T = 12.9 keV
-              </span>
+                <KineticText text={CONTENT.act4.headline} font="bricolage" />
+              </h2>
             </div>
 
             <button
               type="button"
               onClick={handleToggleAutoIgnite}
               data-testid="auto-ignite-btn"
-              className={`self-start md:self-auto font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] px-3.5 py-2 border arch-surface cursor-pointer whitespace-nowrap chrome-ink-transition ${
+              className={`shrink-0 font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.08em] px-3 sm:px-3.5 py-2 border arch-surface cursor-pointer whitespace-nowrap chrome-ink-transition ${
                 isIgnited
                   ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
                   : 'border-[#111114] bg-transparent text-[#111114] hover:bg-[#111114] hover:text-[#F6F3EB]'
@@ -600,19 +612,13 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
               {isIgnited ? CONTENT.act4.quenchLabel : CONTENT.act4.autoIgniteLabel}
             </button>
           </div>
-
-          <h2
-            ref={headlineRef}
-            data-testid="act4-headline"
-            className="ignition-headline k-font-bricolage font-extrabold uppercase"
-            style={{ color: isIgnited ? '#F6F3EB' : '#111114' }}
-          >
-            <KineticText text={CONTENT.act4.headline} font="bricolage" />
-          </h2>
         </div>
 
-        {/* Middle Row: 3 Interactive Rotational-Inertia SVG Instrument Dials */}
-        <div className={`grid grid-cols-1 md:grid-cols-3 border-b ${borderClass}`}>
+        {/* Middle Dial Deck: 3-Column Horizontal Row starting at >= 600px */}
+        <div
+          className={`flex-1 act4-dial-deck border-b ${borderClass}`}
+          data-testid="act4-dial-deck"
+        >
           {CONTENT.act4.dials.map((dial, idx) => {
             const cfg = LAWSON_DIAL_CONFIGS[idx];
             const initialNorm = valueToNorm(cfg.defaultVal, cfg);
@@ -627,16 +633,16 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
             return (
               <div
                 key={dial.id}
-                className={`flex flex-col justify-between border-b md:border-b-0 md:border-r last:border-b-0 last:border-r-0 ${borderClass}`}
+                className={`flex flex-col justify-between border-b min-[600px]:border-b-0 min-[600px]:border-r last:border-b-0 last:border-r-0 ${borderClass}`}
                 data-testid={`lawson-dial-${dial.id}`}
               >
                 {/* Dial Header Strip */}
                 <div
-                  className={`flex items-center justify-between px-4 sm:px-5 py-3 border-b font-mono-lab text-xs tracking-[0.08em] ${borderClass}`}
+                  className={`flex items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 border-b font-mono-lab text-[10.5px] sm:text-xs tracking-[0.07em] ${borderClass}`}
                 >
-                  <span className="flex items-center gap-2 font-bold">
+                  <span className="flex items-center gap-1.5 font-bold">
                     <span
-                      className="inline-block w-2.5 h-2.5 arch-surface shrink-0"
+                      className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 arch-surface shrink-0"
                       style={{ backgroundColor: activeDialAccent }}
                     />
                     {dial.symbol}
@@ -645,13 +651,14 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                 </div>
 
                 {/* Interactive Circular Precision SVG Gauge */}
-                <div className="p-4 sm:p-6 flex items-center justify-center">
+                <div className="flex-1 p-2 sm:p-4 flex items-center justify-center">
                   <svg
                     ref={(el) => {
                       dialSvgRefs.current[idx] = el;
                     }}
                     viewBox="0 0 300 300"
-                    className="w-full max-w-[250px] h-auto cursor-grab active:cursor-grabbing select-none touch-none"
+                    style={{ width: 'min(100%, 240px, 34svh)', height: 'auto' }}
+                    className="cursor-crosshair active:cursor-grabbing select-none touch-none"
                     role="slider"
                     tabIndex={0}
                     aria-label={`${dial.label} (${dial.symbol}) dial`}
@@ -659,6 +666,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                     aria-valuemax={cfg.max}
                     aria-valuenow={cfg.defaultVal}
                     data-testid={`lawson-slider-${dial.id}`}
+                    data-interactive="true"
                     onPointerDown={(e) => handleDialPointerDown(idx, e)}
                     onPointerMove={(e) => handleDialPointerMove(idx, e)}
                     onPointerUp={(e) => handleDialPointerUp(idx, e)}
@@ -816,8 +824,8 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         </div>
 
         {/* Bottom Full-Width Segmented Spectral Bar + Live Phase-Locked Burn Waveform + Q Readout */}
-        <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-5 flex flex-col gap-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="px-4 sm:px-6 md:px-7 py-2.5 sm:py-3.5 flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
             <div
               className="flex-1 grid grid-cols-12 sm:grid-cols-24 gap-1"
               aria-hidden="true"
@@ -829,14 +837,14 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                   ref={(el) => {
                     segmentRefs.current[idx] = el;
                   }}
-                  className={`block h-5 sm:h-6 border arch-surface ${borderClass}`}
+                  className={`block h-4 sm:h-5 border arch-surface ${borderClass}`}
                   style={{ backgroundColor: 'transparent' }}
                 />
               ))}
             </div>
 
             <div
-              className={`font-mono-lab text-xs sm:text-sm font-bold tracking-[0.08em] whitespace-nowrap shrink-0 border px-3.5 py-2 arch-surface ${
+              className={`font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0 border px-3 py-1.5 arch-surface ${
                 isIgnited
                   ? 'border-[#FFB800] text-[#FFB800]'
                   : 'border-[#111114] text-[#111114]'
@@ -850,7 +858,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
           {/* Live 60fps Phase-Locked Fusion Burn Waveform (Reveals on Q >= 1.00 Burning Equilibrium) */}
           {isIgnited && (
             <div
-              className="w-full h-9 border border-[#F6F3EB]/40 arch-surface px-2 flex items-center"
+              className="w-full h-7 sm:h-8 border border-[#F6F3EB]/40 arch-surface px-2 flex items-center"
               data-testid="fusion-burn-waveform"
               aria-label="Live phase-locked self-sustaining fusion burn standing waveform"
             >

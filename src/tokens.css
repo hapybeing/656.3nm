@@ -131,8 +131,8 @@ body {
 }
 
 .stage-headline {
-  font-size: clamp(2.15rem, min(8.4vw, 13.5svh), 8.5rem);
-  line-height: 0.86;
+  font-size: clamp(1.85rem, min(8.2vw, 13svh), 7.8rem);
+  line-height: 0.88;
   letter-spacing: -0.03em;
   --opsz: 144;
   --wdth: 124;
@@ -159,8 +159,23 @@ body {
   will-change: transform, opacity;
 }
 
+/* Act 3 Simultaneous 2-Column Swiss Split starting at >= 680px */
+.act3-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: center;
+}
+
+@media (min-width: 680px) {
+  .act3-split-grid {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 1.75rem;
+  }
+}
+
 .cage-headline {
-  font-size: clamp(3.1rem, 8.2vw, 8.25rem);
+  font-size: clamp(2.2rem, min(5.4vw, 9.2svh), 6.2rem);
   line-height: 0.85;
   letter-spacing: var(--cage-tracking, -0.04em);
   --opsz: 96;
@@ -168,8 +183,20 @@ body {
   --wght: var(--cage-wght, 720);
 }
 
+/* Act 4 Unified 3-Column Horizontal Dial Deck starting at >= 600px */
+.act4-dial-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 600px) {
+  .act4-dial-deck {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .ignition-headline {
-  font-size: clamp(2.25rem, 6.2vw, 5.75rem);
+  font-size: clamp(1.8rem, min(4.6vw, 7.2svh), 4.4rem);
   line-height: 0.9;
   letter-spacing: -0.038em;
   --opsz: 96;
@@ -193,6 +220,19 @@ body {
   font-size: clamp(3.4rem, 11vw, 9.5rem);
   line-height: 0.92;
   letter-spacing: -0.04em;
+}
+
+/* Subtle static 16,000 FPS optical camera sensor grain texture (zero runtime CPU cost) */
+.optical-sensor-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  pointer-events: none;
+  opacity: 0.032;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
 }
 
 /* Focus visibility for keyboard accessibility without rounded glow */

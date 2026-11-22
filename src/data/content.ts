@@ -167,5 +167,6 @@ export const CONTENT = {
     bandB: 'DEUTERIUM  +  TRITIUM  →  HELIUM-4 (3.5 MeV)  +  NEUTRON (14.1 MeV)  ·',
     wordmark: '656.3nm',
     colophon: 'OPTICAL SPECTROSCOPY ARCHIVE  //  EARTH-BOUND FUSION',
+    replayShutterLabel: '↺ REPLAY 16,000 FPS SHUTTER',
   },
 } as const;

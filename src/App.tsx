@@ -13,6 +13,7 @@ import { Act2Lithium } from './components/Act2Lithium';
 import { Act3Cage } from './components/Act3Cage';
 import { Act4Ignition } from './components/Act4Ignition';
 import { Act5Epilogue } from './components/Act5Epilogue';
+import { OpticalReticle } from './components/OpticalReticle';
 
 type ActId = '1' | '2' | '3' | '4' | '5';
 
@@ -82,21 +83,43 @@ export default function App() {
     setShutterReplayNonce((n) => n + 1);
   }, []);
 
+  const handleReplayFromEpilogue = useCallback(() => {
+    motionEngine.scrollTo(0, {
+      duration: 0.9,
+      onComplete: () => {
+        setShutterReplayNonce((n) => n + 1);
+      },
+    });
+  }, []);
+
   const act2Stage = CONTENT.act2.stages[activeStageIndex] ?? CONTENT.act2.stages[0];
   const baseMeta = CONTENT.chrome.actMeta[activeAct];
 
   let chromeInkMode: 'dark' | 'light' = baseMeta.ink;
   let activeWavelength: string = baseMeta.wavelength;
   let activeSwatch: string = baseMeta.swatch;
+  let reticleAccent = '#FF1F71';
 
-  if (activeAct === '2') {
+  if (activeAct === '1') {
+    reticleAccent = '#FF1F71';
+  } else if (activeAct === '2') {
     chromeInkMode = act2Stage.ink === '#F6F3EB' ? 'light' : 'dark';
     activeWavelength = act2Stage.tabLabel;
     activeSwatch = act2Stage.bg;
-  } else if (activeAct === '4' && act4Ignited) {
-    chromeInkMode = 'light';
-    activeWavelength = '0.01nm X-RAY';
-    activeSwatch = '#FFB800';
+    reticleAccent = act2Stage.ink;
+  } else if (activeAct === '3') {
+    reticleAccent = '#EAFF2B';
+  } else if (activeAct === '4') {
+    if (act4Ignited) {
+      chromeInkMode = 'light';
+      activeWavelength = '0.01nm X-RAY';
+      activeSwatch = '#FFB800';
+      reticleAccent = '#FFB800';
+    } else {
+      reticleAccent = '#00E676';
+    }
+  } else if (activeAct === '5') {
+    reticleAccent = '#FFB800';
   }
 
   return (
@@ -105,6 +128,12 @@ export default function App() {
         replayNonce={shutterReplayNonce}
         onTriggerAct1Reveal={handleTriggerAct1Reveal}
       />
+
+      {/* Subtle Static 16,000 FPS Camera Sensor Grain Texture Overlay */}
+      <div className="optical-sensor-grain" aria-hidden="true" data-testid="optical-sensor-grain" />
+
+      {/* Live Spectral Optical Crosshair Cursor (Fine-Pointer Desktop Only) */}
+      <OpticalReticle accentColor={reticleAccent} />
 
       <SwissChrome
         inkMode={chromeInkMode}
@@ -125,7 +154,7 @@ export default function App() {
         <Act4Ignition onIgnitedChange={setAct4Ignited} />
       </main>
 
-      <Act5Epilogue />
+      <Act5Epilogue onReplayShutter={handleReplayFromEpilogue} />
     </div>
   );
 }

@@ -24,7 +24,11 @@ const WORDMARK_CHARS = Array.from(CONTENT.act5.wordmark);
  * - Subtle 1px vertical harmonic spectral emission hairlines backdrop scaling with kinetic energy
  * Zero React useState inside rAF.
  */
-export const Act5Epilogue: React.FC = () => {
+export interface Act5EpilogueProps {
+  onReplayShutter?: () => void;
+}
+
+export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) => {
   const footerRef = useRef<HTMLElement | null>(null);
 
   // Opposing marquee track & single-segment measurement refs
@@ -340,6 +344,7 @@ export const Act5Epilogue: React.FC = () => {
                 aria-label={`Excite ${ch} spectral spring`}
                 data-wordmark-idx={idx}
                 data-testid={`wordmark-char-${idx}`}
+                data-interactive="true"
                 onPointerEnter={() => handleCharExcite(idx)}
                 onClick={() => handleCharDetonate(idx)}
                 onKeyDown={(e) => {
@@ -356,10 +361,22 @@ export const Act5Epilogue: React.FC = () => {
           </div>
         </div>
 
-        {/* Minimal 1px Colophon Footer */}
-        <div className="relative z-10 mt-10 sm:mt-14 pt-4 pb-10 sm:pb-12 border-t border-[rgba(246,243,235,0.26)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#F6F3EB]/85">
+        {/* Minimal 1px Colophon Footer + Hairline Shutter Replay Loop */}
+        <div className="relative z-10 mt-10 sm:mt-14 pt-4 pb-10 sm:pb-12 border-t border-[rgba(246,243,235,0.26)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#F6F3EB]/85">
           <span>{CONTENT.act5.colophon}</span>
-          <span>{CONTENT.brand}</span>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            {onReplayShutter && (
+              <button
+                type="button"
+                onClick={onReplayShutter}
+                data-testid="epilogue-replay-btn"
+                className="pointer-events-auto cursor-pointer border border-[#F6F3EB]/75 px-2.5 py-1 text-[10px] sm:text-[11px] font-semibold tracking-[0.07em] bg-transparent text-[#F6F3EB] hover:bg-[#FFB800] hover:text-[#111114] hover:border-[#FFB800] arch-surface whitespace-nowrap chrome-ink-transition"
+              >
+                {CONTENT.act5.replayShutterLabel}
+              </button>
+            )}
+            <span>{CONTENT.brand}</span>
+          </div>
         </div>
       </div>
     </footer>
