@@ -1,0 +1,6 @@
+{
+  "name": "656.3nm",
+  "description": "Interactive Neo-Swiss spectral editorial experience about nuclear fusion physics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

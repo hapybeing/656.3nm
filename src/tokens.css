@@ -1,0 +1,115 @@
+:root {
+  --paper: #F6F3EB;
+  --ink: #111114;
+  --h-alpha: #FF1F71;
+  --li-neutral: #FF2A2A;
+  --li-ion: #00E676;
+  --h-beta: #00D8FF;
+  --h-gamma: #1822FF;
+  --acid: #EAFF2B;
+  --h-delta: #6A2BFF;
+  --gold: #FFB800;
+  --grid-dark: rgba(17, 17, 20, 0.13);
+  --grid-light: rgba(246, 243, 235, 0.22);
+
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-kinetic: 'Roboto Flex', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+html,
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-display);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+/* Global tabular numeral enforcement on JetBrains Mono */
+.font-mono-lab {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Variable font bindings strictly via CSS custom properties */
+.k-font-bricolage {
+  font-family: var(--font-display);
+  font-variation-settings:
+    "opsz" var(--opsz, 96),
+    "wdth" var(--wdth, 88),
+    "wght" var(--wght, 800);
+}
+
+.k-font-roboto-flex {
+  font-family: var(--font-kinetic);
+  font-variation-settings:
+    "opsz" var(--opsz, 144),
+    "slnt" var(--slnt, 0),
+    "wdth" var(--wdth, 125),
+    "wght" var(--wght, 900);
+}
+
+.k-word {
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.k-char {
+  display: inline-block;
+  font-variation-settings: inherit;
+}
+
+/* Strict 0px architectural corner discipline */
+.arch-surface {
+  border-radius: 0px;
+}
+
+/* Swiss poster display scales */
+.hero-headline {
+  font-size: clamp(3.4rem, 10.8vw, 11rem);
+  line-height: 0.84;
+  letter-spacing: -0.045em;
+}
+
+.stage-headline {
+  font-size: clamp(2.75rem, 8.6vw, 8.75rem);
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  --opsz: 144;
+  --wdth: 128;
+  --wght: 900;
+  --slnt: -6;
+}
+
+.cage-headline {
+  font-size: clamp(3.1rem, 8.2vw, 8.25rem);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+}
+
+.ignition-headline {
+  font-size: clamp(2.25rem, 6.2vw, 5.75rem);
+  line-height: 0.9;
+  letter-spacing: -0.038em;
+}
+
+.epilogue-wordmark {
+  font-size: clamp(4.75rem, 23.8vw, 27rem);
+  line-height: 0.78;
+  letter-spacing: -0.055em;
+  --opsz: 96;
+  --wdth: 98;
+  --wght: 800;
+}
+
+/* Focus visibility for keyboard accessibility without rounded glow */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
