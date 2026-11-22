@@ -135,15 +135,37 @@ body {
   line-height: 0.86;
   letter-spacing: -0.03em;
   --opsz: 144;
-  --wdth: 128;
+  --wdth: 124;
   --wght: 900;
-  --slnt: max(-10, calc(-6 + var(--doppler-slnt, 0)));
+  --slnt: max(-10, calc(var(--doppler-slnt, 0)));
+}
+
+/* Act 2 3D-hinge & razor-sharp hollow streak-camera ghost trails */
+.stage-hinge-perspective {
+  perspective: 1200px;
+}
+
+.stage-hinge-perspective .k-char {
+  transform-origin: 50% 68%;
+  backface-visibility: hidden;
+  will-change: transform, font-variation-settings, opacity;
+}
+
+.streak-ghost {
+  -webkit-text-stroke: 1.5px currentColor;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
 }
 
 .cage-headline {
   font-size: clamp(3.1rem, 8.2vw, 8.25rem);
   line-height: 0.85;
-  letter-spacing: -0.04em;
+  letter-spacing: var(--cage-tracking, -0.04em);
+  --opsz: 96;
+  --wdth: var(--cage-wdth, 88);
+  --wght: var(--cage-wght, 720);
 }
 
 .ignition-headline {
@@ -169,7 +191,8 @@ body {
 
 /* Focus visibility for keyboard accessibility without rounded glow */
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+[role="slider"]:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }

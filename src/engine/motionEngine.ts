@@ -101,6 +101,13 @@ class MotionEngine {
       }
     }
 
+    // Calibrate all ScrollTrigger pin measurements cleanly once variable fonts load
+    document.fonts?.ready.then(() => {
+      if (this.initialized) {
+        ScrollTrigger.refresh();
+      }
+    });
+
     window.addEventListener('pointermove', this.handlePointerMove, { passive: true });
     window.addEventListener('pointerdown', this.handlePointerMove, { passive: true });
     document.addEventListener('pointerleave', this.handlePointerLeave, { passive: true });

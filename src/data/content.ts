@@ -57,10 +57,10 @@ export const CONTENT = {
   act2: {
     eyebrow: 'ACT 02  //  LITHIUM PELLET INJECTION  //  SPECTRAL SNAP',
     spectrometerBounds: {
-      minLabel: '410nm',
-      maxLabel: '671nm',
-      minNm: 410,
-      maxNm: 671,
+      minLabel: '380nm',
+      maxLabel: '700nm',
+      minNm: 380,
+      maxNm: 700,
     },
     stages: [
       {
@@ -122,6 +122,8 @@ export const CONTENT = {
     ] as const,
     fieldRingText: 'MAGNETIC CONFINEMENT FIELD  //  20 TESLA  //  ZERO CONTACT  //  ',
     telemetryStrip: 'COIL TEMP: -269°C  //  PLASMA CORE: 150M°C  //  ΔT: 150,000,269 K',
+    disruptionWarning: '⚠ CONFINEMENT LOST — KINK INSTABILITY',
+    defaultTesla: 12.0,
   },
   act4: {
     eyebrow: 'ACT 04  //  LAWSON TRIPLE PRODUCT  //  n · T · τE',
