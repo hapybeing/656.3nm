@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { CONTENT } from '../data/content';
 import { motionEngine } from '../engine/motionEngine';
+import { spectralAudio } from '../engine/spectralAudio';
 
 export interface Act0ShutterProps {
   replayNonce: number;
@@ -105,6 +106,9 @@ export const Act0Shutter: React.FC<Act0ShutterProps> = ({
           },
         });
 
+        // 0.00s: Optional procedural rising shutter sweep (muted unless toggled ON)
+        tl.call(() => spectralAudio.playShutterSweep(), undefined, 0.02);
+
         // 0.00s -> 1.00s: High-speed tabular counter 00000 -> 16000 FPS
         tl.to(
           proxy,
@@ -149,6 +153,7 @@ export const Act0Shutter: React.FC<Act0ShutterProps> = ({
         );
 
         // 1.00s: Crisp 75ms high-contrast exposure-lock flash (#111114 canvas + #FF1F71 numerals)
+        tl.call(() => spectralAudio.playShutterLock(), undefined, 1.0);
         tl.set(
           rootRef.current,
           { backgroundColor: '#111114' },

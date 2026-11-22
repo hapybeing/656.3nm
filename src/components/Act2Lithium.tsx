@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CONTENT, type SpectralStage } from '../data/content';
 import { motionEngine } from '../engine/motionEngine';
+import { spectralAudio } from '../engine/spectralAudio';
 import { stepSpring, type SpringState } from '../physics/motionMath';
 import {
   ACT2_TIMING,
@@ -215,6 +216,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
       if (state.activeStageIndex !== lastDiscreteStageRef.current) {
         lastDiscreteStageRef.current = state.activeStageIndex;
         onSelectStageRef.current(state.activeStageIndex);
+        spectralAudio.playIonizationChime(activeStage.nm);
       }
 
       // 1. Live reactor microsecond clock (00.000 ms -> 12.400 ms)
@@ -537,72 +539,77 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
             ref={(el) => {
               contentLayerRefs.current[idx] = el;
             }}
-            className="pointer-events-none absolute inset-0 flex flex-col justify-center px-4 sm:px-6 md:px-10 pt-28 sm:pt-32 pb-36 sm:pb-40"
+            data-testid={`act2-content-${stage.id}`}
+            className="pointer-events-none absolute inset-0"
             style={{
               color: stage.ink,
               zIndex: 15 + idx,
               clipPath: idx === 0 ? undefined : 'circle(0% at 50% 12%)',
             }}
           >
-            {/* Stage Telemetry Strip + Monumental 3D-Hinged Roboto Flex Headline */}
-            <div className="relative w-full flex flex-col gap-5 sm:gap-7">
-              <div
-                className={`grid grid-cols-2 md:grid-cols-4 border ${strongBorder} arch-surface`}
-                style={{ backgroundColor: stage.bg }}
-              >
-                <div className={`px-3 sm:px-4 py-2 sm:py-3 border-b md:border-b-0 border-r ${strongBorder}`}>
-                  <span className="font-mono-lab text-xs sm:text-sm md:text-base font-bold tracking-[0.06em] block">
-                    {stage.code}
-                  </span>
-                </div>
-                <div className={`px-3 sm:px-4 py-2 sm:py-3 border-b md:border-b-0 md:border-r ${strongBorder}`}>
-                  <span className="font-mono-lab text-xs sm:text-sm md:text-base font-bold tracking-[0.06em] block">
-                    {stage.wavelength}
-                  </span>
-                </div>
-                <div className={`px-3 sm:px-4 py-2 sm:py-3 border-r ${strongBorder}`}>
-                  <span className="font-mono-lab text-xs sm:text-sm md:text-base tracking-[0.05em] block">
-                    {stage.transition}
-                  </span>
-                </div>
-                <div className="px-3 sm:px-4 py-2 sm:py-3">
-                  <span className="font-mono-lab text-xs sm:text-sm md:text-base font-semibold tracking-[0.06em] block">
-                    {stage.energy}
-                  </span>
-                </div>
-              </div>
-
-              {/* Streak-Camera Kinetic Headline Container */}
-              <div className="relative stage-hinge-perspective">
-                {/* Hollow Streak-Camera Ghost Trail 2 (farthest behind) */}
+            {/* Bounded strictly inside the open visual band between top telemetry strip & bottom spectrometer */}
+            <div className="absolute inset-x-0 top-[102px] sm:top-[114px] bottom-[126px] sm:bottom-[152px] flex flex-col justify-center px-4 sm:px-6 md:px-10">
+              {/* Stage Telemetry Strip + Monumental 3D-Hinged Roboto Flex Headline */}
+              <div className="relative w-full flex flex-col gap-3 sm:gap-5 md:gap-6">
                 <div
-                  ref={(el) => {
-                    ghost2Refs.current[idx] = el;
-                  }}
-                  aria-hidden="true"
-                  className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
+                  className={`grid grid-cols-2 md:grid-cols-4 border ${strongBorder} arch-surface`}
+                  style={{ backgroundColor: stage.bg }}
                 >
-                  {stage.title}
+                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-b md:border-b-0 border-r ${strongBorder}`}>
+                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-bold tracking-[0.06em] block">
+                      {stage.code}
+                    </span>
+                  </div>
+                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-b md:border-b-0 md:border-r ${strongBorder}`}>
+                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-bold tracking-[0.06em] block">
+                      {stage.wavelength}
+                    </span>
+                  </div>
+                  <div className={`px-3 sm:px-4 py-1.5 sm:py-2.5 border-r ${strongBorder}`}>
+                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base tracking-[0.05em] block">
+                      {stage.transition}
+                    </span>
+                  </div>
+                  <div className="px-3 sm:px-4 py-1.5 sm:py-2.5">
+                    <span className="font-mono-lab text-[11px] sm:text-sm md:text-base font-semibold tracking-[0.06em] block">
+                      {stage.energy}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Hollow Streak-Camera Ghost Trail 1 (closer) */}
-                <div
-                  ref={(el) => {
-                    ghost1Refs.current[idx] = el;
-                  }}
-                  aria-hidden="true"
-                  className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
-                >
-                  {stage.title}
-                </div>
+                {/* Streak-Camera Kinetic Headline Container */}
+                <div className="relative stage-hinge-perspective">
+                  {/* Hollow Streak-Camera Ghost Trail 2 (farthest behind) */}
+                  <div
+                    ref={(el) => {
+                      ghost2Refs.current[idx] = el;
+                    }}
+                    aria-hidden="true"
+                    className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
+                  >
+                    {stage.title}
+                  </div>
 
-                {/* Solid Primary Center-Out Erupting Roboto Flex Headline */}
-                <h2
-                  data-solid-headline="true"
-                  className="relative stage-headline k-font-roboto-flex uppercase break-words doppler-heading"
-                >
-                  <KineticText text={stage.title} font="roboto-flex" />
-                </h2>
+                  {/* Hollow Streak-Camera Ghost Trail 1 (closer) */}
+                  <div
+                    ref={(el) => {
+                      ghost1Refs.current[idx] = el;
+                    }}
+                    aria-hidden="true"
+                    className="absolute inset-0 stage-headline k-font-roboto-flex uppercase break-words streak-ghost opacity-0"
+                  >
+                    {stage.title}
+                  </div>
+
+                  {/* Solid Primary Center-Out Erupting Roboto Flex Headline */}
+                  <h2
+                    data-solid-headline="true"
+                    data-testid={`act2-headline-${stage.id}`}
+                    className="relative stage-headline k-font-roboto-flex uppercase break-words doppler-heading"
+                  >
+                    <KineticText text={stage.title} font="roboto-flex" />
+                  </h2>
+                </div>
               </div>
             </div>
           </div>
@@ -693,11 +700,11 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
 
       {/* 4. TOP TELEMETRY RAIL: EYEBROW + LIVE MICROSECOND CLOCK + INTERACTIVE STAGE TABS */}
       <div
-        className="relative z-[30] w-full px-4 sm:px-6 md:px-10 pt-14 sm:pt-16"
+        className="relative z-[30] w-full px-4 sm:px-6 md:px-10 pt-11 sm:pt-14"
         style={{ color: chromeTextColor }}
       >
         <div
-          className="w-full border-t pt-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+          className="w-full border-t pt-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5"
           style={{ borderColor: chromeBorderColor }}
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono-lab text-[10px] sm:text-xs tracking-[0.08em]">
@@ -728,7 +735,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => handleTabJump(idx)}
-                  className={`font-mono-lab text-[11px] sm:text-xs font-medium tracking-[0.05em] px-3 sm:px-4 min-h-[38px] arch-surface whitespace-nowrap shrink-0 cursor-pointer ${mobileBorderClass}`}
+                  className={`font-mono-lab text-[11px] sm:text-xs font-medium tracking-[0.05em] px-3 sm:px-4 min-h-[34px] sm:min-h-[38px] arch-surface whitespace-nowrap shrink-0 cursor-pointer ${mobileBorderClass}`}
                   style={{
                     borderColor: chromeTextColor,
                     backgroundColor: isActive ? chromeTextColor : 'transparent',
@@ -745,16 +752,16 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
 
       {/* 5. BOTTOM LIVE FRAUNHOFER / BALMER EMISSION SPECTROMETER + OSCILLOSCOPE ANALYZER */}
       <div
-        className="absolute bottom-14 sm:bottom-16 left-0 right-0 z-[30] px-4 sm:px-6 md:px-10"
+        className="absolute bottom-10 sm:bottom-14 left-0 right-0 z-[30] px-4 sm:px-6 md:px-10"
         style={{ color: chromeTextColor }}
       >
         <div
-          className="border arch-surface px-3 sm:px-5 pt-2 pb-2.5"
+          className="border arch-surface px-3 sm:px-5 pt-1.5 pb-2"
           style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
           data-testid="emission-spectrometer"
         >
           {/* Live SVG Oscilloscope Spectral Intensity Curve */}
-          <div className="relative h-12 sm:h-14 w-full border-b" style={{ borderColor: chromeBorderColor }}>
+          <div className="relative h-9 sm:h-12 w-full border-b" style={{ borderColor: chromeBorderColor }}>
             <svg
               viewBox="0 0 1000 54"
               preserveAspectRatio="none"

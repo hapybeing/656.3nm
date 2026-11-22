@@ -131,7 +131,7 @@ body {
 }
 
 .stage-headline {
-  font-size: clamp(2.75rem, 8.6vw, 8.75rem);
+  font-size: clamp(2.15rem, min(8.4vw, 13.5svh), 8.5rem);
   line-height: 0.86;
   letter-spacing: -0.03em;
   --opsz: 144;
@@ -172,6 +172,12 @@ body {
   font-size: clamp(2.25rem, 6.2vw, 5.75rem);
   line-height: 0.9;
   letter-spacing: -0.038em;
+  --opsz: 96;
+  --wdth: var(--ign-wdth, 92);
+  --wght: var(--ign-wght, 780);
+  text-shadow:
+    var(--ign-chroma, 0px) 0 0 rgba(255, 31, 113, 0.82),
+    calc(var(--ign-chroma, 0px) * -1) 0 0 rgba(0, 216, 255, 0.82);
 }
 
 .epilogue-wordmark {

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CONTENT, type CageMode } from '../data/content';
+import { spectralAudio } from '../engine/spectralAudio';
 import { generateCirclePath } from '../physics/geometry';
 import {
   computeHeadlinePinch,
@@ -77,6 +78,7 @@ export const Act3Cage: React.FC = () => {
       isFirstModeMountRef.current = false;
       return;
     }
+    spectralAudio.playTopologyClick(mode);
     const tween = gsap.to(morphProxyRef.current, {
       t: mode === 'stellarator' ? 1 : 0,
       duration: 1.15,
@@ -587,6 +589,7 @@ export const Act3Cage: React.FC = () => {
     const ratio = clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
     const tesla = Math.round(ratio * 200) / 10; // 0.1 T precision
     applySliderDom(tesla);
+    spectralAudio.playMagneticStep(tesla, tesla < 3.0);
   };
 
   const handleSliderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

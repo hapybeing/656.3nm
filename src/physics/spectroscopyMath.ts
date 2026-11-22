@@ -83,8 +83,8 @@ export function computeAct2ScrollState(rawProgress: number): Act2ScrollState {
     strength: 0,
   };
 
-  // Stage 0 enters cleanly right at the top of the pinned chamber
-  stageReveals[0] = clamp((progress + 0.04) / 0.14, 0, 1);
+  // Stage 0 is immediately flat, upright, and 100% crisp on entry
+  stageReveals[0] = 1;
 
   for (let i = 1; i <= 3; i++) {
     const start = thresholds[i];
@@ -94,8 +94,8 @@ export function computeAct2ScrollState(rawProgress: number): Act2ScrollState {
     const radiusPct = Number((easedWipe * 155).toFixed(2));
     layerClipRadiiPct[i] = radiusPct;
 
-    // Character hinge reveal spans a crisp 0.14 scroll window starting right at shockwave impact
-    stageReveals[i] = clamp((progress - start) / 0.14, 0, 1);
+    // Character 3D hinge completes crisply within the first 0.07 scroll window of each stage
+    stageReveals[i] = clamp((progress - start) / 0.07, 0, 1);
 
     if (progress >= start + wipeWindow * 0.38) {
       activeStageIndex = i;

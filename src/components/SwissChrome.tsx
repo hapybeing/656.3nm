@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CONTENT } from '../data/content';
 import { motionEngine } from '../engine/motionEngine';
+import { spectralAudio } from '../engine/spectralAudio';
 
 export interface SwissChromeProps {
   inkMode: 'dark' | 'light';
@@ -29,10 +30,32 @@ export const SwissChrome: React.FC<SwissChromeProps> = ({
   activeSwatch,
   onReplayShutter,
 }) => {
+  const [audioOn, setAudioOn] = useState(false);
   const velRef = useRef<HTMLSpanElement | null>(null);
   const coordsRef = useRef<HTMLDivElement | null>(null);
   const progressTickRef = useRef<HTMLSpanElement | null>(null);
   const scaleContainerRef = useRef<HTMLDivElement | null>(null);
+  const meterBarRefs = useRef<Array<HTMLSpanElement | null>>([]);
+
+  useEffect(() => {
+    return spectralAudio.subscribe((enabled, level) => {
+      setAudioOn(enabled);
+      const heights = enabled
+        ? [
+            Math.max(25, Math.round(level * 70 + 20)),
+            Math.max(35, Math.round(level * 100)),
+            Math.max(20, Math.round(level * 62 + 15)),
+          ]
+        : [20, 20, 20];
+      for (let i = 0; i < 3; i++) {
+        const bar = meterBarRefs.current[i];
+        if (bar) {
+          bar.style.height = `${heights[i]}%`;
+          bar.style.opacity = enabled ? '1' : '0.3';
+        }
+      }
+    });
+  }, []);
 
   useEffect(() => {
     let lastVelText = '';
@@ -106,23 +129,51 @@ export const SwissChrome: React.FC<SwissChromeProps> = ({
       <div
         className={`absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-4 sm:px-6 md:px-10 py-3.5 md:py-4 font-mono-lab chrome-ink-transition ${inkColor}`}
       >
-        {/* Top-Left: Clickable 656.3nm badge + active spectral swatch (replays Act 0) */}
-        <button
-          type="button"
-          onClick={onReplayShutter}
-          aria-label="656.3nm — Replay Shutter Calibration"
-          data-testid="replay-shutter-btn"
-          className="pointer-events-auto cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap bg-transparent border-0 p-0 text-current arch-surface"
-        >
-          <span
-            className="inline-block w-2 h-2 arch-surface shrink-0 chrome-ink-transition"
-            style={{ backgroundColor: activeSwatch }}
-            data-testid="chrome-swatch"
-          />
-          <span className="text-[11px] sm:text-xs font-semibold tracking-[0.06em]">
-            {CONTENT.brand}
-          </span>
-        </button>
+        {/* Top-Left: Clickable 656.3nm badge + [ AUDIO: OFF/ON ] hairline synth toggle */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={onReplayShutter}
+            aria-label="656.3nm — Replay Shutter Calibration"
+            data-testid="replay-shutter-btn"
+            className="pointer-events-auto cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap bg-transparent border-0 p-0 text-current arch-surface"
+          >
+            <span
+              className="inline-block w-2 h-2 arch-surface shrink-0 chrome-ink-transition"
+              style={{ backgroundColor: activeSwatch }}
+              data-testid="chrome-swatch"
+            />
+            <span className="text-[11px] sm:text-xs font-semibold tracking-[0.06em]">
+              {CONTENT.brand}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => spectralAudio.toggle()}
+            aria-pressed={audioOn}
+            aria-label={audioOn ? 'Mute spectral audio synthesizer' : 'Enable spectral audio synthesizer'}
+            data-testid="audio-toggle-btn"
+            className="pointer-events-auto cursor-pointer inline-flex items-center gap-1.5 border border-current px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-[0.08em] bg-transparent text-current arch-surface whitespace-nowrap chrome-ink-transition"
+          >
+            <span>{audioOn ? 'AUDIO: ON' : 'AUDIO: OFF'}</span>
+            <span
+              className="inline-flex items-end gap-[2px] h-2.5 w-2.5"
+              aria-hidden="true"
+            >
+              {[0, 1, 2].map((b) => (
+                <span
+                  key={`m-${b}`}
+                  ref={(el) => {
+                    meterBarRefs.current[b] = el;
+                  }}
+                  className="block w-[2px] bg-current arch-surface"
+                  style={{ height: '20%', opacity: 0.3 }}
+                />
+              ))}
+            </span>
+          </button>
+        </div>
 
         {/* Top-Right: Live Wavelength // Velocity // Active Act */}
         <div
@@ -130,8 +181,14 @@ export const SwissChrome: React.FC<SwissChromeProps> = ({
           data-testid="chrome-telemetry"
         >
           <span>λ {activeWavelength}</span>
-          <span aria-hidden="true">{'  //  VEL '}</span>
-          <span ref={velRef} data-testid="chrome-velocity">
+          <span className="hidden sm:inline" aria-hidden="true">
+            {'  //  VEL '}
+          </span>
+          <span
+            ref={velRef}
+            className="hidden sm:inline"
+            data-testid="chrome-velocity"
+          >
             00.0
           </span>
           <span aria-hidden="true">{'  //  ACT '}</span>

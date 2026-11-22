@@ -158,6 +158,8 @@ export const CONTENT = {
       },
     ] as readonly LawsonDialSpec[],
     targetReadout: 'Q = 1.00  //  BREAKEVEN',
+    autoIgniteLabel: 'AUTO-IGNITE ↗',
+    quenchLabel: 'QUENCH ↓',
   },
   act5: {
     bandA:

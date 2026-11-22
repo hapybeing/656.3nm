@@ -19,6 +19,7 @@ type ActId = '1' | '2' | '3' | '4' | '5';
 export default function App() {
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [activeAct, setActiveAct] = useState<ActId>('1');
+  const [act4Ignited, setAct4Ignited] = useState(false);
   const [shutterReplayNonce, setShutterReplayNonce] = useState(0);
   const [act1RevealNonce, setAct1RevealNonce] = useState(0);
 
@@ -92,6 +93,10 @@ export default function App() {
     chromeInkMode = act2Stage.ink === '#F6F3EB' ? 'light' : 'dark';
     activeWavelength = act2Stage.tabLabel;
     activeSwatch = act2Stage.bg;
+  } else if (activeAct === '4' && act4Ignited) {
+    chromeInkMode = 'light';
+    activeWavelength = '0.01nm X-RAY';
+    activeSwatch = '#FFB800';
   }
 
   return (
@@ -117,7 +122,7 @@ export default function App() {
           onSelectStage={setActiveStageIndex}
         />
         <Act3Cage />
-        <Act4Ignition />
+        <Act4Ignition onIgnitedChange={setAct4Ignited} />
       </main>
 
       <Act5Epilogue />
