@@ -97,7 +97,7 @@ export function computeAct2ScrollState(rawProgress: number): Act2ScrollState {
     // Character 3D hinge completes crisply within the first 0.07 scroll window of each stage
     stageReveals[i] = clamp((progress - start) / 0.07, 0, 1);
 
-    if (progress >= start + wipeWindow * 0.38) {
+    if (progress >= start) {
       activeStageIndex = i;
     }
 

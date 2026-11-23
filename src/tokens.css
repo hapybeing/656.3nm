@@ -169,14 +169,14 @@ body {
 
 @media (min-width: 680px) {
   .act3-split-grid {
-    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-    gap: 1.75rem;
+    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+    gap: 2rem;
   }
 }
 
 .cage-headline {
-  font-size: clamp(2.2rem, min(5.4vw, 9.2svh), 6.2rem);
-  line-height: 0.85;
+  font-size: clamp(2.5rem, min(6.2vw, 10.6svh), 7.2rem);
+  line-height: 0.84;
   letter-spacing: var(--cage-tracking, -0.04em);
   --opsz: 96;
   --wdth: var(--cage-wdth, 88);

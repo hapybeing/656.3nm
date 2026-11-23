@@ -415,15 +415,15 @@ export const Act3Cage: React.FC = () => {
       data-act="3"
       data-act-ink="light"
       data-cage-mode={mode}
-      className="relative min-h-[100svh] w-full bg-[#1822FF] text-[#F6F3EB] flex flex-col justify-center px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 py-14 sm:py-16 overflow-hidden box-border"
+      className="relative min-h-[100svh] w-full bg-[#1822FF] text-[#F6F3EB] flex flex-col justify-center px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 py-16 sm:py-14 overflow-hidden box-border"
     >
-      {/* Simultaneous 2-Column Swiss Split (>= 680px: 0.92fr Controls + 1.08fr Sculptural 3D Manifold) */}
+      {/* Simultaneous 2-Column Swiss Split (>= 680px: 0.94fr Controls + 1.06fr Sculptural 3D Manifold) */}
       <div
-        className="relative z-10 w-full act3-split-grid"
+        className="relative z-10 w-full act3-split-grid my-auto"
         data-testid="act3-split-grid"
       >
         {/* Column 1: Acid Tungsten Headline + Topology Switch + Vivid Tesla Pinch Slider */}
-        <div className="flex flex-col gap-5 sm:gap-6 min-w-0">
+        <div className="flex flex-col justify-center gap-6 sm:gap-7 min-w-0">
           <h2
             ref={headlineRef}
             className="cage-headline k-font-bricolage uppercase text-[#EAFF2B] doppler-heading doppler-shear"

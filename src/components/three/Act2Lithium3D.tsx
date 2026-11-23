@@ -91,22 +91,24 @@ void main() {
   vec3 N = normalize(vWorldNormal);
   vec3 V = normalize(cameraPosition - vWorldPos);
   float ndotv = clamp(abs(dot(N, V)), 0.0, 1.0);
-  float fresnel = pow(1.0 - ndotv, 2.2);
+  float fresnel = pow(1.0 - ndotv, 2.75);
+  float sharpRim = pow(1.0 - ndotv, 4.8);
 
   // Crisp Swiss helical spectral ribbons
   float stripe = 0.5 + 0.5 * sin(vUv.x * 50.2655 - vUv.y * 12.566 + uTime * 2.4 + vNoise * 2.6);
-  float band = smoothstep(0.45, 0.88, stripe);
+  float band = smoothstep(0.44, 0.86, stripe);
 
   vec3 L = normalize(vec3(3.0, 4.5, 5.0));
   vec3 H = normalize(L + V);
-  float diff = 0.45 + 0.55 * max(dot(N, L), 0.0);
-  float spec = pow(max(dot(N, H), 0.0), 34.0);
+  float diff = 0.42 + 0.58 * max(dot(N, L), 0.0);
+  float spec = pow(max(dot(N, H), 0.0), 56.0);
 
-  vec3 col = mix(uPrimary, uAccent, band * 0.82) * diff;
-  col = mix(col, uRim, fresnel * 0.88);
-  col += uRim * spec * (0.65 + uEnergy * 0.5);
+  vec3 col = mix(uPrimary, uAccent, band * 0.80) * diff;
+  col = mix(col, uRim, fresnel * 0.92);
+  col += uRim * sharpRim * 0.55;
+  col += uRim * spec * (0.95 + uEnergy * 0.55);
 
-  float alpha = clamp(0.84 + fresnel * 0.16, 0.0, 0.96);
+  float alpha = clamp(0.80 + fresnel * 0.20, 0.0, 0.96);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -193,8 +195,8 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
     fillLight.position.set(-4, -3, 4);
     scene.add(fillLight);
 
-    // 1. Sculptural Twisted Plasma Vortex Knot
-    const vortexGeom = new THREE.TorusKnotGeometry(1.62, 0.34, 112, 20, 2, 3);
+    // 1. Sculptural Twisted Plasma Vortex Knot (slimmed ~15% for razor-sleek silhouette)
+    const vortexGeom = new THREE.TorusKnotGeometry(1.64, 0.285, 116, 20, 2, 3);
     const curPrimary = STAGE_PALETTES[0].primary.clone();
     const curAccent = STAGE_PALETTES[0].accent.clone();
     const curRim = STAGE_PALETTES[0].rim.clone();
@@ -218,7 +220,7 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
     scene.add(vortexMesh);
 
     // 2. Faceted 3D Metallic Lithium Crystal (flat-shaded octahedron stretched into lab crystal)
-    const crystalGeom = new THREE.OctahedronGeometry(0.42, 0).toNonIndexed();
+    const crystalGeom = new THREE.OctahedronGeometry(0.42, 0);
     crystalGeom.scale(0.82, 1.38, 0.82);
     crystalGeom.computeVertexNormals();
 
@@ -236,7 +238,7 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
     scene.add(crystalMesh);
 
     // 3. 10 Orbiting Solid Faceted Crystal Shards (bloom outward once ionized)
-    const shardGeom = new THREE.OctahedronGeometry(0.115, 0).toNonIndexed();
+    const shardGeom = new THREE.OctahedronGeometry(0.115, 0);
     shardGeom.scale(0.75, 1.45, 0.75);
     shardGeom.computeVertexNormals();
     const shardMat = new THREE.MeshStandardMaterial({

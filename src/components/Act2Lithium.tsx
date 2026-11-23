@@ -60,6 +60,8 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   const oscPathRef = useRef<SVGPathElement | null>(null);
   const caliperRef = useRef<HTMLDivElement | null>(null);
   const specActiveLabelRef = useRef<HTMLSpanElement | null>(null);
+  const specWrapperRef = useRef<HTMLDivElement | null>(null);
+  const specBoxRef = useRef<HTMLDivElement | null>(null);
 
   // Mutable 60fps progress, 3D visual state, & discrete stage ref (zero useState churn)
   const scrubProxyRef = useRef({ progress: 0 });
@@ -209,10 +211,15 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
       visual3DRef.current.pelletYPct = state.pelletYPct;
       visual3DRef.current.transitionEnergy = state.transitionEnergy;
 
-      // Notify parent + launch 3D torus shockwave ring ONLY on discrete stage crossing
+      // Notify parent + launch 3D torus shockwave ring + sync spectrometer ink synchronously on exact threshold crossing
       if (state.activeStageIndex !== lastDiscreteStageRef.current) {
         lastDiscreteStageRef.current = state.activeStageIndex;
         visual3DRef.current.shockNonce += 1;
+        const stageInk = activeStage.ink;
+        if (specWrapperRef.current) specWrapperRef.current.style.color = stageInk;
+        if (specBoxRef.current) specBoxRef.current.style.borderColor = stageInk;
+        if (oscPathRef.current) oscPathRef.current.setAttribute('stroke', stageInk);
+        if (caliperRef.current) caliperRef.current.style.borderColor = stageInk;
         onSelectStageRef.current(state.activeStageIndex);
         spectralAudio.playIonizationChime(activeStage.nm);
       }
@@ -476,7 +483,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         <div className="w-full min-w-0 flex flex-wrap items-center justify-between gap-2">
           <span
             className="px-2 py-1 border-2 arch-surface font-mono-lab text-[10px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0"
-            style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
+            style={{ borderColor: chromeTextColor, backgroundColor: 'transparent' }}
             data-testid="act2-time-readout"
           >
             T+ <span ref={timeReadoutRef}>00.000 ms</span>
@@ -484,7 +491,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
 
           <div
             className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex items-stretch border-2 arch-surface shrink-0 mr-0 sm:mr-6"
-            style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
+            style={{ borderColor: chromeTextColor, backgroundColor: 'transparent' }}
             role="group"
             aria-label="Spectral emission stage selector"
           >
@@ -567,14 +574,16 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         ))}
       </div>
 
-      {/* ROW 3: CLEAN LIVE EMISSION PEAK CURVE & CALIPER */}
+      {/* ROW 3: CLEAN LIVE EMISSION PEAK CURVE & CALIPER (TRANSPARENT BACKING FOR ZERO WIPE LAG) */}
       <div
+        ref={specWrapperRef}
         className="relative z-[10] w-full min-w-0 px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-12"
         style={{ color: chromeTextColor }}
       >
         <div
-          className="h-[clamp(62px,11.5svh,94px)] border-2 arch-surface px-3 sm:px-4 py-1.5 flex flex-col justify-between"
-          style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
+          ref={specBoxRef}
+          className="h-[clamp(62px,11.5svh,94px)] border-2 arch-surface px-3 sm:px-4 py-1.5 flex flex-col justify-between bg-transparent"
+          style={{ borderColor: chromeTextColor, backgroundColor: 'transparent' }}
           data-testid="emission-spectrometer"
         >
           {/* Live SVG Oscilloscope Spectral Intensity Curve */}

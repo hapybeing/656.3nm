@@ -67,6 +67,16 @@ export const SwissChrome: React.FC<SwissChromeProps> = ({
   const isLightInk = inkMode === 'light';
   const inkColor = isLightInk ? 'text-[#F6F3EB]' : 'text-[#111114]';
   const indicatorBg = isLightInk ? 'bg-[#F6F3EB]' : 'bg-[#111114]';
+  const hudBackdropStyle: React.CSSProperties = {
+    backgroundColor: isLightInk
+      ? 'rgba(17, 17, 20, 0.78)'
+      : 'rgba(246, 243, 235, 0.84)',
+    borderColor: isLightInk
+      ? 'rgba(246, 243, 235, 0.22)'
+      : 'rgba(17, 17, 20, 0.18)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+  };
 
   return (
     <div
@@ -74,9 +84,11 @@ export const SwissChrome: React.FC<SwissChromeProps> = ({
       data-testid="swiss-chrome"
       data-ink-mode={inkMode}
     >
-      {/* Top-Left ONLY: Clickable 656.3nm spectral badge + [ AUDIO: OFF/ON ] toggle */}
+      {/* Top-Left ONLY: Clickable 656.3nm spectral badge + [ AUDIO: OFF/ON ] toggle with crisp zero-radius architectural backing */}
       <div
-        className={`absolute top-0 left-0 flex items-center gap-2.5 sm:gap-3 px-4 sm:px-6 md:px-10 py-3.5 md:py-4 font-mono-lab chrome-ink-transition ${inkColor}`}
+        className={`pointer-events-auto absolute top-0 left-0 flex items-center gap-2.5 sm:gap-3 px-4 sm:px-6 md:px-7 py-2.5 sm:py-3 border-b border-r arch-surface font-mono-lab chrome-ink-transition ${inkColor}`}
+        style={hudBackdropStyle}
+        data-testid="swiss-chrome-hud"
       >
         <button
           type="button"

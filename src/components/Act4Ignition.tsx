@@ -527,7 +527,8 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
       data-act="4"
       data-act-ink={isIgnited ? 'light' : 'dark'}
       data-ignited={isIgnited ? 'true' : 'false'}
-      className={`relative min-h-[100svh] w-full flex flex-col justify-between px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 pt-[3.75rem] pb-6 sm:pb-8 overflow-hidden chrome-ink-transition box-border ${bgClass}`}
+      className={`relative min-h-[100svh] w-full flex flex-col justify-between px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 pb-5 sm:pb-6 overflow-hidden box-border ${bgClass}`}
+      style={{ paddingTop: 'clamp(4.25rem, 8svh, 5.25rem)' }}
     >
       {/* Fullscreen Fixed 260ms Pure-White X-Ray Overexposure Flash + Shockfront Ring */}
       <div
@@ -576,27 +577,28 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
             type="button"
             onClick={handleToggleAutoIgnite}
             data-testid="auto-ignite-btn"
-            className={`shrink-0 font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] px-4 py-2.5 border-2 arch-surface cursor-pointer whitespace-nowrap chrome-ink-transition ${
-              isIgnited
-                ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
-                : 'border-[#111114] bg-[#111114] text-[#F6F3EB] hover:bg-[#FF1F71] hover:border-[#FF1F71]'
-            }`}
+            style={{
+              backgroundColor: isIgnited ? '#FFB800' : '#111114',
+              color: isIgnited ? '#111114' : '#F6F3EB',
+              borderColor: isIgnited ? '#FFB800' : '#111114',
+            }}
+            className="shrink-0 font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] px-4 py-2.5 border-2 arch-surface cursor-pointer whitespace-nowrap hover:opacity-90"
           >
             {isIgnited ? CONTENT.act4.quenchLabel : CONTENT.act4.autoIgniteLabel}
           </button>
         </div>
 
-        {/* Center Horizon: Live 3D Fusion Core Star + 3 Concentric Glossy Metallic Gimbal Rings */}
+        {/* Center Horizon: Live 3D Fusion Core Star + Additive Corona + 3 Concentric Glossy Gimbal Rings */}
         <div className="relative w-full flex items-center justify-center my-auto">
           <Act4Core3D
             stateRef={visual3DRef}
-            className="w-[290px] h-[220px] sm:w-[440px] sm:h-[290px] md:w-[540px] md:h-[325px]"
+            className="w-[min(92%,480px)] h-[clamp(175px,28svh,250px)]"
           />
         </div>
 
         {/* Lower Dial Deck: 3 Vivid Coloured Open Instrument Dials (ZERO grey box borders) */}
         <div
-          className="act4-dial-deck gap-3 sm:gap-4"
+          className="act4-dial-deck gap-2.5 sm:gap-4"
           data-testid="act4-dial-deck"
         >
           {CONTENT.act4.dials.map((dial, idx) => {
@@ -616,14 +618,18 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                 className="flex flex-col items-center justify-center gap-1"
                 data-testid={`lawson-dial-${dial.id}`}
               >
-                {/* Crisp Vivid Coloured Dial Label */}
-                <div className="flex items-center gap-2 font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.08em]">
+                {/* Crisp Vivid Coloured Dial Label (permanently rendered with explicit high-contrast ink) */}
+                <div
+                  className="flex items-center gap-2 font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.08em]"
+                  style={{ color: inkHex, opacity: 1 }}
+                  data-testid={`lawson-label-${dial.id}`}
+                >
                   <span
                     className="inline-block w-2.5 h-2.5 arch-surface shrink-0"
                     style={{ backgroundColor: activeDialAccent }}
                   />
                   <span style={{ color: activeDialAccent }}>{dial.symbol}</span>
-                  <span>{dial.label}</span>
+                  <span style={{ color: inkHex }}>{dial.label}</span>
                 </div>
 
                 {/* Interactive Circular Precision SVG Gauge */}
@@ -632,7 +638,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                     dialSvgRefs.current[idx] = el;
                   }}
                   viewBox="0 0 300 300"
-                  style={{ width: 'min(100%, 205px, 27svh)', height: 'auto' }}
+                  style={{ width: 'min(100%, 190px, 24.5svh)', height: 'auto' }}
                   className="cursor-crosshair active:cursor-grabbing select-none touch-none"
                   role="slider"
                   tabIndex={0}
@@ -800,11 +806,12 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
             </div>
 
             <div
-              className={`font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0 border-2 px-3 py-1.5 arch-surface ${
-                isIgnited
-                  ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
-                  : 'border-[#111114] text-[#111114]'
-              }`}
+              className="font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0 border-2 px-3 py-1.5 arch-surface"
+              style={{
+                borderColor: isIgnited ? '#FFB800' : '#111114',
+                backgroundColor: isIgnited ? '#FFB800' : 'transparent',
+                color: '#111114',
+              }}
               data-testid="q-gain-readout"
             >
               <span ref={qReadoutRef}>{CONTENT.act4.targetReadout}</span>

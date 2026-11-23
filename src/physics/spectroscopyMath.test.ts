@@ -29,6 +29,14 @@ test('computeAct2ScrollState maps 0..1 progress to 0..12.4ms, 12..84% pellet dro
   assert.equal(end.pelletYPct, 84);
   assert.equal(end.activeStageIndex, 3);
   assert.equal(end.layerClipRadiiPct[3], 155);
+
+  // Exact threshold sync verification (zero spectrometer lag)
+  assert.equal(computeAct2ScrollState(0.249).activeStageIndex, 0);
+  assert.equal(computeAct2ScrollState(0.25).activeStageIndex, 1);
+  assert.equal(computeAct2ScrollState(0.549).activeStageIndex, 1);
+  assert.equal(computeAct2ScrollState(0.55).activeStageIndex, 2);
+  assert.equal(computeAct2ScrollState(0.799).activeStageIndex, 2);
+  assert.equal(computeAct2ScrollState(0.8).activeStageIndex, 3);
 });
 
 test('computeCenterOutCharPose ignites center glyphs before edges and settles cleanly', () => {

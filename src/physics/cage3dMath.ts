@@ -98,8 +98,8 @@ export function evaluateMagneticAxisPoint(
   const disruption = computeDisruptionFactor(params.bFieldTesla);
   const r0 = 1.62;
 
-  const axisR = r0 + m * 0.25 * Math.cos(5 * phi);
-  const axisZ = m * 0.26 * Math.sin(5 * phi);
+  const axisR = r0 + m * 0.34 * Math.cos(5 * phi);
+  const axisZ = m * 0.36 * Math.sin(5 * phi);
 
   // Kink instability shakes the magnetic axis violently below 3.0 T
   let kinkR = 0;
@@ -157,10 +157,10 @@ export function evaluatePlasmaSurfacePoint(
   const triWeight = 1 - beanWeight;
 
   // Local unrotated cross-section combining concave bean indentation & sharp triangularity
-  const beanIndent = -0.26 * beanWeight * Math.cos(2 * theta);
-  const triLobe = 0.22 * triWeight * Math.cos(3 * theta);
-  const u = a * (0.78 * Math.cos(theta) + beanIndent + triLobe);
-  const v = a * (1.42 * Math.sin(theta) + 0.14 * beanWeight * Math.sin(2 * theta));
+  const beanIndent = -0.34 * beanWeight * Math.cos(2 * theta);
+  const triLobe = 0.28 * triWeight * Math.cos(3 * theta);
+  const u = a * (0.8 * Math.cos(theta) + beanIndent + triLobe);
+  const v = a * (1.52 * Math.sin(theta) + 0.18 * beanWeight * Math.sin(2 * theta));
 
   // Rotate cross-section continuously by N * phi / 2
   const twistAngle = (nPeriods * phi) * 0.5;
@@ -184,8 +184,8 @@ export function evaluatePlasmaSurfacePoint(
     localZ = localZ * radialBuckle + disruption * 0.18 * Math.cos(phi + t * 10.2);
   }
 
-  const axisR = r0 + m * 0.25 * cos5;
-  const axisZ = m * 0.26 * sin5;
+  const axisR = r0 + m * 0.34 * cos5;
+  const axisZ = m * 0.36 * sin5;
 
   const R = axisR + localR;
   const Z = axisZ + localZ;
@@ -211,7 +211,7 @@ export function evaluateModularCoilPoint(
   const m = clamp(params.morphT, 0, 1);
   const phiBase = (coilIndex / totalCoils) * Math.PI * 2;
   // Non-planar 3D saddle warp on modular Stellarator coils
-  const saddleWarp = m * 0.16 * Math.sin(2 * theta + 5 * phiBase);
+  const saddleWarp = m * 0.21 * Math.sin(2 * theta + 5 * phiBase);
   const phi = phiBase + saddleWarp;
 
   // Coils remain mechanically rigid (do not pinch with plasma minor radius)
@@ -219,7 +219,7 @@ export function evaluateModularCoilPoint(
     morphT: m,
     bFieldTesla: 10, // constant structural magnet frame
     timeSec: params.timeSec,
-    radialScale: 1.38,
+    radialScale: 1.34,
   };
   return evaluatePlasmaSurfacePoint(phi, theta, rigidParams);
 }
@@ -244,8 +244,8 @@ export function evaluateMagneticIslandPoint(
   const baseTheta = (islandIndex / 5) * Math.PI * 2 + phi * 1.0;
   const separatrixA = 0.72 * pinchFactor;
 
-  const axisR = r0 + m * 0.25 * Math.cos(nPeriods * phi);
-  const axisZ = m * 0.26 * Math.sin(nPeriods * phi);
+  const axisR = r0 + m * 0.34 * Math.cos(nPeriods * phi);
+  const axisZ = m * 0.36 * Math.sin(nPeriods * phi);
 
   const twistAngle = (nPeriods * phi) * 0.5;
   const cosTw = Math.cos(twistAngle);

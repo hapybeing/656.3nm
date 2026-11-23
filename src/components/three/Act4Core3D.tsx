@@ -124,6 +124,73 @@ void main() {
 }
 `;
 
+const CORONA_VERT = /* glsl */ `
+uniform float uTime;
+uniform float uQ;
+uniform float uIgnited;
+
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+
+${GLSL_SIMPLEX_3D}
+
+void main() {
+  vLocalPos = position;
+  float pulse = 1.0 + uIgnited * (0.045 + 0.025 * sin(uTime * 2.6));
+  float n = snoise(normalize(position) * 2.4 + vec3(uTime * 0.45, -uTime * 0.35, uTime * 0.25));
+  float breath = 1.0 + n * (0.03 + uIgnited * 0.045);
+  vec3 pos = position * pulse * breath;
+  vec4 wp = modelMatrix * vec4(pos, 1.0);
+  vWorldPos = wp.xyz;
+  vWorldNormal = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}
+`;
+
+const CORONA_FRAG = /* glsl */ `
+uniform float uTime;
+uniform float uT;
+uniform float uQ;
+uniform float uIgnited;
+
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+
+void main() {
+  // Back-face optical rim: ndotv peaks cleanly along the star limb and fades smoothly to 0 at the outer shell silhouette
+  vec3 N = normalize(vWorldNormal);
+  vec3 V = normalize(cameraPosition - vWorldPos);
+  float ndotv = clamp(abs(dot(N, V)), 0.0, 1.0);
+
+  float rimHalo = pow(ndotv, 1.65);
+  float crispLimb = pow(ndotv, 3.2);
+
+  // Subtle azimuthal optical corona striations (pure analytic GLSL, zero particle noise)
+  vec3 dir = normalize(vLocalPos);
+  float angle = atan(dir.y, dir.x);
+  float rays = 0.86 + 0.14 * sin(angle * 10.0 + uTime * 1.4) * cos(dir.z * 7.0 - uTime * 1.1);
+
+  vec3 balmerPink = vec3(1.0, 0.122, 0.443);  // #FF1F71
+  vec3 elecCyan   = vec3(0.0, 0.847, 1.0);    // #00D8FF
+  vec3 solarGold  = vec3(1.0, 0.722, 0.0);    // #FFB800
+  vec3 amberRim   = vec3(1.0, 0.48, 0.02);
+  vec3 whiteGold  = vec3(1.0, 0.96, 0.82);
+
+  float preStress = smoothstep(0.55, 0.99, uQ) * (1.0 - uIgnited);
+  vec3 preColor = mix(balmerPink, elecCyan, smoothstep(0.25, 0.85, uT));
+  vec3 ignColor = mix(amberRim, solarGold, rimHalo);
+  ignColor = mix(ignColor, whiteGold, crispLimb * 0.9);
+
+  vec3 col = mix(preColor, ignColor, uIgnited);
+  float strength = mix(0.28 + preStress * 0.55, 1.45, uIgnited);
+  float alpha = clamp((rimHalo * 0.88 + crispLimb * 0.72) * rays * strength, 0.0, 0.96);
+
+  gl_FragColor = vec4(col * (1.1 + crispLimb * 0.75), alpha);
+}
+`;
+
 /**
  * ACT 04 — LIVE 3D FUSION CORE REACTOR
  * High-subdivision 3D plasma star core (GLSL 3D simplex-noise boil + Fresnel corona)
@@ -186,7 +253,29 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
       fragmentShader: STAR_CORE_FRAG,
     });
     const starMesh = new THREE.Mesh(starGeom, starMat);
+    starMesh.renderOrder = 1;
     rig.add(starMesh);
+
+    // 1b. Pure GLSL Back-Face Additive Fresnel Outer Plasma Corona Shell
+    const coronaGeom = new THREE.IcosahedronGeometry(1.54, 10);
+    const coronaMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uT: { value: 0.5 },
+        uQ: { value: 0.5 },
+        uIgnited: { value: 0 },
+      },
+      vertexShader: CORONA_VERT,
+      fragmentShader: CORONA_FRAG,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+    });
+    const coronaMesh = new THREE.Mesh(coronaGeom, coronaMat);
+    coronaMesh.renderOrder = 2;
+    rig.add(coronaMesh);
 
     // 2. Three Concentric Glossy Metallic 3D Gyroscopic Gimbal Containment Rings
     const ringMatA = new THREE.MeshStandardMaterial({
@@ -269,8 +358,14 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
       starMat.uniforms.uQ.value = st.qGain;
       starMat.uniforms.uIgnited.value = smoothIgnited;
 
+      coronaMat.uniforms.uTime.value = elapsed;
+      coronaMat.uniforms.uT.value = st.tNorm;
+      coronaMat.uniforms.uQ.value = st.qGain;
+      coronaMat.uniforms.uIgnited.value = smoothIgnited;
+
       starMesh.rotation.y = elapsed * (0.28 + st.tNorm * 0.35);
       starMesh.rotation.x = Math.sin(elapsed * 0.45) * 0.2;
+      coronaMesh.rotation.copy(starMesh.rotation);
 
       // Confinement time τE tightens rings inward and locks harmonic alignment
       const tighten = 1.12 - st.tauNorm * 0.22;

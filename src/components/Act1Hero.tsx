@@ -407,17 +407,17 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       {/* Huge Sculptural 3D Optical Plasma Toroid (Right-Weighted Swiss Gallery Asymmetry) */}
       <div
         ref={toroidWrapRef}
-        className="pointer-events-none absolute inset-y-4 right-0 left-0 sm:left-[26%] md:left-[32%] flex items-center justify-center z-[2]"
+        className="pointer-events-none absolute top-4 bottom-14 sm:bottom-16 right-0 left-0 sm:left-[38%] md:left-[44%] lg:left-[46%] flex items-center justify-center sm:justify-end sm:pr-4 md:pr-6 z-[2]"
         aria-hidden="true"
       >
-        <Act1Toroid3D className="w-[115vw] h-[78svh] sm:w-full sm:h-[88svh] max-w-[920px] max-h-[820px]" />
+        <Act1Toroid3D className="w-[106vw] h-[72svh] sm:w-full sm:h-[78svh] md:h-[80svh] max-w-[780px] max-h-[720px]" />
       </div>
 
       {/* Top Spacer preserving clean Swiss breathing room under fixed top-left badge */}
       <div className="h-4 shrink-0" aria-hidden="true" />
 
-      {/* Monumental Display Headline — Anchored Left with Dramatic Contrast */}
-      <div className="relative z-10 my-auto py-6 sm:py-10">
+      {/* Monumental Display Headline — Anchored Left with Dramatic Gallery Separation */}
+      <div className="relative z-10 my-auto py-6 sm:py-10 sm:max-w-[60%] lg:max-w-[58%]">
         <h1 className="hero-headline k-font-bricolage uppercase tracking-tight doppler-heading doppler-shear">
           {CONTENT.act1.headlineLines.map((line, idx) => (
             <span

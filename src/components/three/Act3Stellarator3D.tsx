@@ -36,6 +36,8 @@ export interface Act3Stellarator3DProps {
 
 const PHI_STEPS = 120;
 const THETA_STEPS = 32;
+const COIL_COUNT = 14;
+const COIL_RADIUS = 0.024;
 
 const PLASMA_MANIFOLD_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -81,21 +83,24 @@ void main() {
   float helicalA = 0.5 + 0.5 * sin(8.0 * (theta - phi * qFactor) - uTime * speed + warp * 1.9);
   float helicalB = 0.5 + 0.5 * cos(5.0 * (theta - phi * (qFactor * 0.8)) + uTime * speed * 0.72 + warp * 1.4);
 
-  float filamentYellow = smoothstep(0.56, 0.96, helicalA);
-  float filamentCyan   = smoothstep(0.62, 0.97, helicalB);
-  float filamentPink   = smoothstep(0.76, 0.98, 0.5 + 0.5 * sin(12.0 * phi - 3.0 * theta - uTime * speed * 1.4));
+  float filamentYellow = smoothstep(0.46, 0.94, helicalA);
+  float filamentCyan   = smoothstep(0.50, 0.95, helicalB);
+  float filamentPink   = smoothstep(0.68, 0.97, 0.5 + 0.5 * sin(12.0 * phi - 3.0 * theta - uTime * speed * 1.4));
 
   vec3 acidYellow = vec3(0.918, 1.0, 0.169);   // #EAFF2B
   vec3 elecCyan   = vec3(0.0, 0.847, 1.0);     // #00D8FF
   vec3 balmerPink = vec3(1.0, 0.122, 0.443);   // #FF1F71
   vec3 crimson    = vec3(1.0, 0.165, 0.165);   // #FF2A2A
-  vec3 deepIndigo = vec3(0.055, 0.09, 0.42);
+  vec3 deepIndigo = vec3(0.045, 0.075, 0.36);
 
-  vec3 col = deepIndigo * (0.6 + 0.6 * fresnel);
-  col = mix(col, elecCyan, filamentCyan * 0.82);
-  col = mix(col, acidYellow, filamentYellow * 0.94);
-  col += balmerPink * filamentPink * (0.65 + uMorphT * 0.4);
-  col += mix(elecCyan, acidYellow, 0.55) * rim * 0.95;
+  // Sharper Fresnel depth separation so the sculptural plasma core dominates the cobalt field
+  float coreShade = 0.38 + 0.62 * pow(ndotv, 0.85);
+  vec3 col = deepIndigo * coreShade;
+  col = mix(col, elecCyan * 1.15, filamentCyan * 0.88);
+  col = mix(col, acidYellow * 1.18, filamentYellow * 0.96);
+  col += balmerPink * filamentPink * (0.95 + uMorphT * 0.55);
+  col += mix(elecCyan, acidYellow, 0.58) * fresnel * 0.82;
+  col += vec3(0.96, 0.98, 1.0) * rim * 1.15;
 
   // Violent crimson kink disruption takeover below 3.0 T
   if (uDisruption > 0.01) {
@@ -106,10 +111,10 @@ void main() {
 
   // Crisp studio specular reflection
   vec3 L = normalize(vec3(4.0, 5.0, 4.5));
-  float spec = pow(max(dot(N, normalize(L + V)), 0.0), 32.0);
-  col += vec3(1.0) * spec * 0.55;
+  float spec = pow(max(dot(N, normalize(L + V)), 0.0), 40.0);
+  col += vec3(1.0) * spec * 0.72;
 
-  float alpha = clamp(0.44 + fresnel * 0.54 + filamentYellow * 0.28 + filamentCyan * 0.2, 0.0, 0.98);
+  float alpha = clamp(0.60 + fresnel * 0.38 + filamentYellow * 0.28 + filamentCyan * 0.22, 0.0, 0.98);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -216,18 +221,22 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
     camera.position.set(0, 0.3, 8.1);
     camera.lookAt(0, 0, 0);
 
-    // Crisp studio lighting over Balmer Cobalt (#1822FF)
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    // Crisp studio lighting over Balmer Cobalt (#1822FF) catching sleek titanium ribs
+    const keyLight = new THREE.DirectionalLight(0xf6f3eb, 2.8);
     keyLight.position.set(4, 6, 5);
     scene.add(keyLight);
 
-    const yellowLight = new THREE.PointLight(0xeaff2b, 22, 16, 1.5);
+    const rimWhiteLight = new THREE.DirectionalLight(0xf6f3eb, 2.2);
+    rimWhiteLight.position.set(-4.5, 3.0, -4.0);
+    scene.add(rimWhiteLight);
+
+    const cyanLight = new THREE.PointLight(0x00d8ff, 30, 18, 1.4);
+    cyanLight.position.set(4.2, -2.0, 4.0);
+    scene.add(cyanLight);
+
+    const yellowLight = new THREE.PointLight(0xeaff2b, 20, 16, 1.5);
     yellowLight.position.set(-4.0, 2.6, 3.6);
     scene.add(yellowLight);
-
-    const cyanLight = new THREE.PointLight(0x00d8ff, 22, 16, 1.5);
-    cyanLight.position.set(4.0, -2.2, 3.8);
-    scene.add(cyanLight);
 
     const rig = new THREE.Group();
     scene.add(rig);
@@ -251,15 +260,15 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
     plasmaMesh.renderOrder = 2;
     rig.add(plasmaMesh);
 
-    // 2. 18 Glossy Metallic-Silver / Cobalt Modular Superconducting Coils (1 draw call)
-    const coilBuf = createMergedClosedTubesBuffer(18, 28, 6);
+    // 2. 14 Razor-Sleek Dark-Chrome / Titanium Superconducting Modular Coils (1 draw call)
+    const coilBuf = createMergedClosedTubesBuffer(COIL_COUNT, 28, 6);
     const coilMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#E3ECFF'),
-      emissive: new THREE.Color('#142099'),
-      emissiveIntensity: 0.22,
-      metalness: 0.95,
-      roughness: 0.14,
-      envMapIntensity: 2.1,
+      color: new THREE.Color('#283044'),
+      emissive: new THREE.Color('#00D8FF'),
+      emissiveIntensity: 0.14,
+      metalness: 0.96,
+      roughness: 0.12,
+      envMapIntensity: 2.35,
     });
     const coilMesh = new THREE.Mesh(coilBuf.geometry, coilMat);
     coilMesh.renderOrder = 1;
@@ -306,8 +315,8 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
 
     // Initial synchronous geometry build
     updateManifoldPositions(manifold.geometry, manifold.positions, params);
-    updateMergedClosedTubesInPlace(coilBuf, 0.044, (c, theta, out) => {
-      const p = evaluateModularCoilPoint(c, 18, theta, params);
+    updateMergedClosedTubesInPlace(coilBuf, COIL_RADIUS, (c, theta, out) => {
+      const p = evaluateModularCoilPoint(c, COIL_COUNT, theta, params);
       out.x = p.x;
       out.y = p.y;
       out.z = p.z;
@@ -388,11 +397,11 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
         });
       }
 
-      // Update 18 metallic modular coils ONLY when morphT changes
+      // Update 14 dark-titanium modular coils ONLY when morphT changes
       if (Math.abs(st.morphT - lastCoilMorph) > 0.001) {
         lastCoilMorph = st.morphT;
-        updateMergedClosedTubesInPlace(coilBuf, 0.044, (c, theta, out) => {
-          const p = evaluateModularCoilPoint(c, 18, theta, params);
+        updateMergedClosedTubesInPlace(coilBuf, COIL_RADIUS, (c, theta, out) => {
+          const p = evaluateModularCoilPoint(c, COIL_COUNT, theta, params);
           out.x = p.x;
           out.y = p.y;
           out.z = p.z;
