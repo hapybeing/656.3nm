@@ -590,7 +590,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         <div className="relative w-full flex items-center justify-center my-auto">
           <Act4Core3D
             stateRef={visual3DRef}
-            className="w-[260px] h-[200px] sm:w-[360px] sm:h-[250px] md:w-[440px] md:h-[270px]"
+            className="w-[290px] h-[220px] sm:w-[440px] sm:h-[290px] md:w-[540px] md:h-[325px]"
           />
         </div>
 

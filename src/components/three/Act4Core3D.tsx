@@ -5,6 +5,7 @@ import {
   createSculpturalRenderer,
   disposeThreeBundle,
   GLSL_SIMPLEX_3D,
+  useViewportWebGLActive,
 } from './webglUtils';
 
 export interface Act4VisualState {
@@ -134,10 +135,11 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
   className = '',
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const isActive = useViewportWebGLActive(mountRef, false, '160px 0px 160px 0px');
 
   useEffect(() => {
     const container = mountRef.current;
-    if (!container) return;
+    if (!container || !isActive) return;
 
     const bundle = createSculpturalRenderer(container);
     if (!bundle) return;
@@ -152,7 +154,7 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
       0.1,
       50
     );
-    camera.position.set(0, 0, 6.2);
+    camera.position.set(0, 0, 5.25);
     camera.lookAt(0, 0, 0);
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -171,7 +173,7 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
     scene.add(rig);
 
     // 1. High-Subdivision 3D Plasma Star Core
-    const starGeom = new THREE.IcosahedronGeometry(1.06, 28);
+    const starGeom = new THREE.IcosahedronGeometry(1.06, 14);
     const starMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -316,7 +318,7 @@ export const Act4Core3D: React.FC<Act4Core3DProps> = ({
       ro.disconnect();
       disposeThreeBundle(scene, renderer, envRT);
     };
-  }, [stateRef]);
+  }, [stateRef, isActive]);
 
   return (
     <div

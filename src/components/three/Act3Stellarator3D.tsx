@@ -14,6 +14,7 @@ import {
   disposeThreeBundle,
   GLSL_SIMPLEX_3D,
   updateMergedClosedTubesInPlace,
+  useViewportWebGLActive,
 } from './webglUtils';
 
 export interface Act3VisualState {
@@ -33,8 +34,8 @@ export interface Act3Stellarator3DProps {
   className?: string;
 }
 
-const PHI_STEPS = 160;
-const THETA_STEPS = 48;
+const PHI_STEPS = 120;
+const THETA_STEPS = 32;
 
 const PLASMA_MANIFOLD_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -193,10 +194,11 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
   className = '',
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const isActive = useViewportWebGLActive(mountRef, false, '160px 0px 160px 0px');
 
   useEffect(() => {
     const container = mountRef.current;
-    if (!container) return;
+    if (!container || !isActive) return;
 
     const bundle = createSculpturalRenderer(container);
     if (!bundle) return;
@@ -211,7 +213,7 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
       0.1,
       50
     );
-    camera.position.set(0, 0.25, 7.6);
+    camera.position.set(0, 0.3, 8.1);
     camera.lookAt(0, 0, 0);
 
     // Crisp studio lighting over Balmer Cobalt (#1822FF)
@@ -250,7 +252,7 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
     rig.add(plasmaMesh);
 
     // 2. 18 Glossy Metallic-Silver / Cobalt Modular Superconducting Coils (1 draw call)
-    const coilBuf = createMergedClosedTubesBuffer(18, 32, 8);
+    const coilBuf = createMergedClosedTubesBuffer(18, 28, 6);
     const coilMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color('#E3ECFF'),
       emissive: new THREE.Color('#142099'),
@@ -264,7 +266,7 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
     rig.add(coilMesh);
 
     // 3. 5 Glowing 3D Helical Magnetic Island Tubes (bloom with morphT)
-    const islandBuf = createMergedClosedTubesBuffer(5, 64, 6);
+    const islandBuf = createMergedClosedTubesBuffer(5, 48, 5);
     const islandMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color('#00D8FF'),
       emissive: new THREE.Color('#00D8FF'),
@@ -442,7 +444,7 @@ export const Act3Stellarator3D: React.FC<Act3Stellarator3DProps> = ({
       ro.disconnect();
       disposeThreeBundle(scene, renderer, envRT);
     };
-  }, [stateRef]);
+  }, [stateRef, isActive]);
 
   return (
     <div

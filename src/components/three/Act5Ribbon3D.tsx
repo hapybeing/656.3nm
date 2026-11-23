@@ -4,6 +4,7 @@ import {
   createAdaptiveLoop,
   createSculpturalRenderer,
   disposeThreeBundle,
+  useViewportWebGLActive,
 } from './webglUtils';
 
 export interface Act5Ribbon3DProps {
@@ -130,10 +131,11 @@ export const Act5Ribbon3D: React.FC<Act5Ribbon3DProps> = ({
   className = '',
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const isActive = useViewportWebGLActive(mountRef, false, '160px 0px 160px 0px');
 
   useEffect(() => {
     const container = mountRef.current;
-    if (!container) return;
+    if (!container || !isActive) return;
 
     const bundle = createSculpturalRenderer(container);
     if (!bundle) return;
@@ -151,7 +153,7 @@ export const Act5Ribbon3D: React.FC<Act5Ribbon3DProps> = ({
     camera.position.set(0, 0.15, 7.8);
     camera.lookAt(0, 0, 0);
 
-    const ribbonGeom = new THREE.PlaneGeometry(1, 1, 128, 24);
+    const ribbonGeom = new THREE.PlaneGeometry(1, 1, 96, 16);
     const energyUniformArray = [0, 0, 0, 0, 0, 0, 0];
 
     const ribbonMat = new THREE.ShaderMaterial({
@@ -220,7 +222,7 @@ export const Act5Ribbon3D: React.FC<Act5Ribbon3DProps> = ({
       ro.disconnect();
       disposeThreeBundle(scene, renderer, envRT);
     };
-  }, [charEnergyRef]);
+  }, [charEnergyRef, isActive]);
 
   return (
     <div

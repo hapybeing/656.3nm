@@ -8,14 +8,15 @@ import {
   disposeThreeBundle,
   GLSL_SIMPLEX_3D,
   updateMergedClosedTubesInPlace,
+  useViewportWebGLActive,
 } from './webglUtils';
 
 /**
- * Builds the Miller D-shaped parametric tokamak plasma torus (128x64).
+ * Builds the Miller D-shaped parametric tokamak plasma torus (96x40).
  */
 function buildMillerPlasmaGeometry(
-  phiSteps = 128,
-  thetaSteps = 64
+  phiSteps = 96,
+  thetaSteps = 40
 ): THREE.BufferGeometry {
   const R0 = 1.62;
   const a = 0.62;
@@ -167,10 +168,11 @@ export interface Act1Toroid3DProps {
  */
 export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const isActive = useViewportWebGLActive(mountRef, true, '160px 0px 160px 0px');
 
   useEffect(() => {
     const container = mountRef.current;
-    if (!container) return;
+    if (!container || !isActive) return;
 
     const bundle = createSculpturalRenderer(container);
     if (!bundle) return;
@@ -209,7 +211,7 @@ export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) =>
     scene.add(rig);
 
     // 1. 12 Glossy Metallic-Obsidian / Chrome 3D D-Shaped Magnetic Field Coils (1 draw call)
-    const coilBuf = createMergedClosedTubesBuffer(12, 40, 10);
+    const coilBuf = createMergedClosedTubesBuffer(12, 32, 8);
     const coilR0 = 1.62;
     const coilA = 0.84;
     const coilDelta = 0.42;
@@ -239,7 +241,7 @@ export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) =>
       envMapIntensity: 2.0,
     });
     const crownTop = new THREE.Mesh(
-      new THREE.TorusGeometry(1.62, 0.026, 12, 96),
+      new THREE.TorusGeometry(1.62, 0.026, 10, 72),
       crownMat
     );
     crownTop.rotation.x = Math.PI * 0.5;
@@ -247,7 +249,7 @@ export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) =>
     rig.add(crownTop);
 
     const crownBot = new THREE.Mesh(
-      new THREE.TorusGeometry(1.62, 0.026, 12, 96),
+      new THREE.TorusGeometry(1.62, 0.026, 10, 72),
       crownMat
     );
     crownBot.rotation.x = Math.PI * 0.5;
@@ -255,7 +257,7 @@ export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) =>
     rig.add(crownBot);
 
     // 3. Miller D-Shaped Plasma Torus with "Invisible Core" GLSL Fresnel Shader
-    const plasmaGeom = buildMillerPlasmaGeometry(128, 64);
+    const plasmaGeom = buildMillerPlasmaGeometry(96, 40);
     const plasmaMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -345,7 +347,7 @@ export const Act1Toroid3D: React.FC<Act1Toroid3DProps> = ({ className = '' }) =>
       ro.disconnect();
       disposeThreeBundle(scene, renderer, envRT);
     };
-  }, []);
+  }, [isActive]);
 
   return (
     <div

@@ -5,6 +5,7 @@ import {
   createSculpturalRenderer,
   disposeThreeBundle,
   GLSL_SIMPLEX_3D,
+  useViewportWebGLActive,
 } from './webglUtils';
 
 export interface Act2VisualState {
@@ -20,30 +21,31 @@ export interface Act2Lithium3DProps {
   className?: string;
 }
 
-// High-contrast sculptural palettes calibrated to pop cleanly against each flat Act 2 plate:
-// Stage 0 (#FF1F71 Pink bg): Deep Obsidian + Electric Cyan + Cream highlights
-// Stage 1 (#FF2A2A Crimson bg): Solar Gold + Obsidian + Paper White
-// Stage 2 (#00E676 Emerald bg): Deep Obsidian + Acid Tungsten + Cobalt rim
-// Stage 3 (#00D8FF Cyan bg): Balmer Cobalt + Balmer Pink + Deep Obsidian
+// High-contrast sculptural palettes calibrated to pop cleanly against BOTH the flat Act 2
+// backdrop AND the giant foreground stage headline ink:
+// Stage 0 (#FF1F71 Pink bg, #111114 black ink): Luminous Electric Cyan + Ceramic White + Solar Gold
+// Stage 1 (#FF2A2A Crimson bg, #F6F3EB white ink): Deep Obsidian + Solar Gold + Violet rim
+// Stage 2 (#00E676 Emerald bg, #111114 black ink): Luminous Acid Tungsten + Electric Cyan + White chrome
+// Stage 3 (#00D8FF Cyan bg, #111114 black ink): Luminous Balmer Pink + Solar Gold + White chrome
 const STAGE_PALETTES = [
   {
-    primary: new THREE.Color('#111114'),
-    accent: new THREE.Color('#00D8FF'),
+    primary: new THREE.Color('#00D8FF'),
+    accent: new THREE.Color('#FFB800'),
     rim: new THREE.Color('#F6F3EB'),
   },
   {
     primary: new THREE.Color('#19151B'),
     accent: new THREE.Color('#FFB800'),
+    rim: new THREE.Color('#6A2BFF'),
+  },
+  {
+    primary: new THREE.Color('#EAFF2B'),
+    accent: new THREE.Color('#00D8FF'),
     rim: new THREE.Color('#F6F3EB'),
   },
   {
-    primary: new THREE.Color('#111114'),
-    accent: new THREE.Color('#EAFF2B'),
-    rim: new THREE.Color('#1822FF'),
-  },
-  {
-    primary: new THREE.Color('#1822FF'),
-    accent: new THREE.Color('#FF1F71'),
+    primary: new THREE.Color('#FF1F71'),
+    accent: new THREE.Color('#FFB800'),
     rim: new THREE.Color('#F6F3EB'),
   },
 ];
@@ -161,10 +163,11 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
   className = '',
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const isActive = useViewportWebGLActive(mountRef, false, '160px 0px 160px 0px');
 
   useEffect(() => {
     const container = mountRef.current;
-    if (!container) return;
+    if (!container || !isActive) return;
 
     const bundle = createSculpturalRenderer(container);
     if (!bundle) return;
@@ -191,7 +194,7 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
     scene.add(fillLight);
 
     // 1. Sculptural Twisted Plasma Vortex Knot
-    const vortexGeom = new THREE.TorusKnotGeometry(1.65, 0.34, 150, 26, 2, 3);
+    const vortexGeom = new THREE.TorusKnotGeometry(1.62, 0.34, 112, 20, 2, 3);
     const curPrimary = STAGE_PALETTES[0].primary.clone();
     const curAccent = STAGE_PALETTES[0].accent.clone();
     const curRim = STAGE_PALETTES[0].rim.clone();
@@ -414,7 +417,7 @@ export const Act2Lithium3D: React.FC<Act2Lithium3DProps> = ({
       ro.disconnect();
       disposeThreeBundle(scene, renderer, envRT);
     };
-  }, [stateRef]);
+  }, [stateRef, isActive]);
 
   return (
     <div

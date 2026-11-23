@@ -1,7 +1,39 @@
+import { useEffect, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 let cachedIsSoftwareGl: boolean | null = null;
+
+/**
+ * React hook that tracks whether a 3D canvas container is near/inside the viewport.
+ * Ensures only the visible Act initializes a WebGLRenderer & PMREM environment,
+ * preventing simultaneous 5-context GPU/SwiftShader spikes on initial load.
+ */
+export function useViewportWebGLActive(
+  containerRef: RefObject<HTMLElement | null>,
+  defaultActive = false,
+  rootMargin = '180px 0px 180px 0px'
+): boolean {
+  const [active, setActive] = useState(defaultActive);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setActive(entry.isIntersecting);
+        }
+      },
+      { threshold: 0.01, rootMargin }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [containerRef, rootMargin]);
+
+  return active;
+}
 
 /**
  * Detects software WebGL rasterizers (SwiftShader, llvmpipe, softpipe) once
@@ -102,7 +134,7 @@ export function createSculpturalRenderer(
 }
 
 /**
- * GPU-friendly rAF loop with automatic fence-paced cooldown on software WebGL
+ * GPU-friendly 60fps rAF loop with automatic fence-paced cooldown on software WebGL
  * so headless browsers never stall the main thread.
  */
 export function createAdaptiveLoop(
@@ -122,16 +154,19 @@ export function createAdaptiveLoop(
     }
 
     const gl = renderer.getContext();
-    const waitFence = () => {
+    const waitCooldown = () => {
       if (stopped) return;
       timerId = window.setTimeout(() => {
         if (!stopped) {
           rafId = window.requestAnimationFrame(step);
         }
-      }, 75);
+      }, 125);
     };
 
-    if (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext) {
+    if (
+      typeof WebGL2RenderingContext !== 'undefined' &&
+      gl instanceof WebGL2RenderingContext
+    ) {
       const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
       if (sync) {
         gl.flush();
@@ -147,16 +182,16 @@ export function createAdaptiveLoop(
             status === gl.WAIT_FAILED
           ) {
             gl.deleteSync(sync);
-            waitFence();
+            waitCooldown();
           } else {
-            timerId = window.setTimeout(poll, 16);
+            timerId = window.setTimeout(poll, 20);
           }
         };
-        timerId = window.setTimeout(poll, 12);
+        timerId = window.setTimeout(poll, 16);
         return;
       }
     }
-    waitFence();
+    waitCooldown();
   };
 
   const step = (now: number) => {
@@ -275,14 +310,16 @@ export function createMergedClosedTubesBuffer(
   return { geometry, positions, normals, tubeCount, ringSteps, radialSides };
 }
 
-// Reusable scratch buffers for zero-GC in-place tube sweeps
 const _centerPointsX = new Float32Array(128);
 const _centerPointsY = new Float32Array(128);
 const _centerPointsZ = new Float32Array(128);
+const _tanX = new Float32Array(128);
+const _tanY = new Float32Array(128);
+const _tanZ = new Float32Array(128);
+const _normX = new Float32Array(128);
+const _normY = new Float32Array(128);
+const _normZ = new Float32Array(128);
 
-/**
- * Updates a MergedClosedTubesBuffer in-place using a smooth Frenet/parallel frame.
- */
 export function updateMergedClosedTubesInPlace(
   buf: MergedClosedTubesBuffer,
   radius: number,
@@ -306,52 +343,99 @@ export function updateMergedClosedTubesInPlace(
       _centerPointsZ[i] = pt.z;
     }
 
-    const baseV = t * vertsPerTube;
-    for (let i = 0; i <= ringSteps; i++) {
-      const idx = i % ringSteps;
-      const prevIdx = (idx - 1 + ringSteps) % ringSteps;
-      const nextIdx = (idx + 1) % ringSteps;
-
-      const cx = _centerPointsX[idx];
-      const cy = _centerPointsY[idx];
-      const cz = _centerPointsZ[idx];
-
-      // Tangent T
+    // 2. Compute smooth unit tangents
+    for (let i = 0; i < ringSteps; i++) {
+      const prevIdx = (i - 1 + ringSteps) % ringSteps;
+      const nextIdx = (i + 1) % ringSteps;
       let tx = _centerPointsX[nextIdx] - _centerPointsX[prevIdx];
       let ty = _centerPointsY[nextIdx] - _centerPointsY[prevIdx];
       let tz = _centerPointsZ[nextIdx] - _centerPointsZ[prevIdx];
       const tLen = Math.hypot(tx, ty, tz) || 1;
-      tx /= tLen;
-      ty /= tLen;
-      tz /= tLen;
+      _tanX[i] = tx / tLen;
+      _tanY[i] = ty / tLen;
+      _tanZ[i] = tz / tLen;
+    }
 
-      // Stable radial reference from origin to build orthogonal frame (N, B)
-      let rx = cx;
-      let ry = cy;
-      let rz = cz;
-      const rDotT = rx * tx + ry * ty + rz * tz;
-      rx -= rDotT * tx;
-      ry -= rDotT * ty;
-      rz -= rDotT * tz;
-      let rLen = Math.hypot(rx, ry, rz);
-      if (rLen < 1e-4) {
-        rx = Math.abs(ty) < 0.9 ? 0 : 1;
-        ry = Math.abs(ty) < 0.9 ? 1 : 0;
-        rz = 0;
-        const d2 = rx * tx + ry * ty + rz * tz;
-        rx -= d2 * tx;
-        ry -= d2 * ty;
-        rz -= d2 * tz;
-        rLen = Math.hypot(rx, ry, rz) || 1;
-      }
-      const nx = rx / rLen;
-      const ny = ry / rLen;
-      const nz = rz / rLen;
+    // 3. Initial normal perpendicular to T[0]
+    const t0x = _tanX[0];
+    const t0y = _tanY[0];
+    const t0z = _tanZ[0];
+    let rx = Math.abs(t0y) < 0.85 ? 0 : 1;
+    let ry = Math.abs(t0y) < 0.85 ? 1 : 0;
+    let rz = 0;
+    const d0 = rx * t0x + ry * t0y + rz * t0z;
+    rx -= d0 * t0x;
+    ry -= d0 * t0y;
+    rz -= d0 * t0z;
+    const r0Len = Math.hypot(rx, ry, rz) || 1;
+    _normX[0] = rx / r0Len;
+    _normY[0] = ry / r0Len;
+    _normZ[0] = rz / r0Len;
 
-      // Binormal B = T x N
-      const bx = ty * nz - tz * ny;
-      const by = tz * nx - tx * nz;
-      const bz = tx * ny - ty * nx;
+    // 4. Parallel-transport (Bishop frame) around the loop with zero flips
+    for (let i = 1; i < ringSteps; i++) {
+      const pnx = _normX[i - 1];
+      const pny = _normY[i - 1];
+      const pnz = _normZ[i - 1];
+      const tx = _tanX[i];
+      const ty = _tanY[i];
+      const tz = _tanZ[i];
+      const dotNT = pnx * tx + pny * ty + pnz * tz;
+      let nx = pnx - dotNT * tx;
+      let ny = pny - dotNT * ty;
+      let nz = pnz - dotNT * tz;
+      const nLen = Math.hypot(nx, ny, nz) || 1;
+      _normX[i] = nx / nLen;
+      _normY[i] = ny / nLen;
+      _normZ[i] = nz / nLen;
+    }
+
+    // 5. Measure closure twist from last step back to step 0 & distribute evenly
+    const lastNx = _normX[ringSteps - 1];
+    const lastNy = _normY[ringSteps - 1];
+    const lastNz = _normZ[ringSteps - 1];
+    const dotLast = lastNx * t0x + lastNy * t0y + lastNz * t0z;
+    let endNx = lastNx - dotLast * t0x;
+    let endNy = lastNy - dotLast * t0y;
+    let endNz = lastNz - dotLast * t0z;
+    const endLen = Math.hypot(endNx, endNy, endNz) || 1;
+    endNx /= endLen;
+    endNy /= endLen;
+    endNz /= endLen;
+
+    const b0x = t0y * _normZ[0] - t0z * _normY[0];
+    const b0y = t0z * _normX[0] - t0x * _normZ[0];
+    const b0z = t0x * _normY[0] - t0y * _normX[0];
+    const cosTw = Math.max(-1, Math.min(1, endNx * _normX[0] + endNy * _normY[0] + endNz * _normZ[0]));
+    const sinTw = endNx * b0x + endNy * b0y + endNz * b0z;
+    const totalTwist = Math.atan2(sinTw, cosTw);
+
+    // 6. Sweep closed radial ring vertices with smooth twist closure
+    const baseV = t * vertsPerTube;
+    for (let i = 0; i <= ringSteps; i++) {
+      const idx = i % ringSteps;
+      const cx = _centerPointsX[idx];
+      const cy = _centerPointsY[idx];
+      const cz = _centerPointsZ[idx];
+      const tx = _tanX[idx];
+      const ty = _tanY[idx];
+      const tz = _tanZ[idx];
+      const nx0 = _normX[idx];
+      const ny0 = _normY[idx];
+      const nz0 = _normZ[idx];
+      const bx0 = ty * nz0 - tz * ny0;
+      const by0 = tz * nx0 - tx * nz0;
+      const bz0 = tx * ny0 - ty * nx0;
+
+      const corr = -(i / ringSteps) * totalTwist;
+      const cc = Math.cos(corr);
+      const sc = Math.sin(corr);
+      const nx = nx0 * cc + bx0 * sc;
+      const ny = ny0 * cc + by0 * sc;
+      const nz = nz0 * cc + bz0 * sc;
+      const bx = -nx0 * sc + bx0 * cc;
+      const by = -ny0 * sc + by0 * cc;
+      const bz = -nz0 * sc + bz0 * cc;
 
       for (let j = 0; j <= radialSides; j++) {
         const ang = (j / radialSides) * Math.PI * 2;
@@ -379,9 +463,6 @@ export function updateMergedClosedTubesInPlace(
   buf.geometry.computeBoundingSphere();
 }
 
-/**
- * Compact, self-contained Ashima 3D Simplex Noise GLSL chunk for procedural MHD plasma shaders.
- */
 export const GLSL_SIMPLEX_3D = /* glsl */ `
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
