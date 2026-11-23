@@ -7,41 +7,33 @@ import { generateCirclePath } from '../physics/geometry';
 import {
   computeHeadlinePinch,
   computeMagneticPressureMPa,
-  evaluateMagneticAxisPoint,
-  evaluateMagneticIslandPoint,
-  evaluateModularCoilPoint,
-  evaluatePlasmaSurfacePoint,
-  projectPoint3D,
-  type CagePhysicsParams,
 } from '../physics/cage3dMath';
 import { clamp, stepSpring, type SpringState } from '../physics/motionMath';
 import { KineticText } from './KineticText';
+import { Act3Stellarator3D, type Act3VisualState } from './three/Act3Stellarator3D';
 
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * ACT 03 — THE MAGNETIC CAGE (Live 3D-Projected Parametric Tokamak <-> Stellarator Engine)
- * Full-bleed Balmer Cobalt (#1822FF) + Acid Tungsten (#EAFF2B):
- * - High-DPI HTML5 Canvas 2D 3D parametric manifold (zero Three.js, 60fps)
- * - Continuous morphT (0 -> 1) between axisymmetric D-shaped Tokamak & 5-fold W7-X Stellarator
- * - 18 superconducting coils, helical field lines (q=3.1), relativistic vector tracer pulses,
- *   hot #FF1F71 magnetic axis filament, & 5 Stellarator edge magnetic island chains
- * - Interactive mouse/touch 3D orbit with damped inertia + auto-orbit
- * - Coupled 0.0T -> 20.0T Dieter Rams Tesla pinch slider wired live to geometry, headline,
- *   rotating <textPath> ring, and <3.0T MHD kink disruption instability
+ * ACT 03 — THE MAGNETIC CAGE (Solid 3D Vertex-Morphed Tokamak <-> W7-X Stellarator)
+ * Brutally decluttered Balmer Cobalt (#1822FF) + Acid Tungsten (#EAFF2B):
+ * - Bold #EAFF2B "NO WALL / CAN TOUCH / A STAR." headline coupled live to Tesla pinch
+ * - Vibrant TOKAMAK / STELLARATOR topology switch (1.15s expo.inOut 3D vertex morph)
+ * - Tactile B-FIELD slider with ONLY vivid #EAFF2B "B-FIELD: 12.0 T // 57.3 MPa" readout
+ * - Rotating SVG <textPath> outer ring framing massive sculptural 3D Act3Stellarator3D
+ * Zero muted eyebrow text, zero bottom grey telemetry strip, zero redundant grey box borders.
  */
 export const Act3Cage: React.FC = () => {
   const [mode, setMode] = useState<CageMode>('tokamak');
 
   const sectionRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportWrapRef = useRef<HTMLDivElement | null>(null);
   const headlineRef = useRef<HTMLHeadingElement | null>(null);
   const lineMaskRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const lineInnerRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const ringTextSvgRef = useRef<SVGSVGElement | null>(null);
 
-  // Direct-DOM refs for zero-re-render 60fps Tesla slider & telemetry
+  // Direct-DOM refs for zero-re-render 60fps Tesla slider & vivid readout
   const sliderTrackRef = useRef<HTMLDivElement | null>(null);
   const sliderFillRef = useRef<HTMLDivElement | null>(null);
   const sliderHandleRef = useRef<HTMLDivElement | null>(null);
@@ -49,7 +41,7 @@ export const Act3Cage: React.FC = () => {
   const bFieldReadoutRef = useRef<HTMLSpanElement | null>(null);
   const pressureReadoutRef = useRef<HTMLSpanElement | null>(null);
 
-  // Mutable 60fps engine refs (zero useState in rAF / drag)
+  // Mutable 60fps physics & 3D orbit refs (zero useState in rAF / drag)
   const morphProxyRef = useRef({ t: 0 });
   const targetTeslaRef = useRef<number>(CONTENT.act3.defaultTesla);
   const currentTeslaSpringRef = useRef<SpringState>({
@@ -58,17 +50,24 @@ export const Act3Cage: React.FC = () => {
   });
   const orbitRef = useRef({
     rotY: 0.42,
-    rotX: 0.56,
+    rotX: 0.54,
     velY: 0,
     velX: 0,
     dragging: false,
     lastPtrX: 0,
     lastPtrY: 0,
   });
+  const visual3DRef = useRef<Act3VisualState>({
+    morphT: 0,
+    bField: CONTENT.act3.defaultTesla,
+    rotY: 0.42,
+    rotX: 0.54,
+    disruptionFactor: 0,
+  });
   const ringAngleDegRef = useRef(0);
   const entranceDoneRef = useRef(false);
 
-  const ringTextPath = useMemo(() => generateCirclePath(300, 300, 266), []);
+  const ringTextPath = useMemo(() => generateCirclePath(300, 300, 274), []);
   const repeatedRingText = `${CONTENT.act3.fieldRingText}${CONTENT.act3.fieldRingText}${CONTENT.act3.fieldRingText}`;
 
   // Sync mode tab clicks to continuous 1.15s expo.inOut topological morph
@@ -90,7 +89,7 @@ export const Act3Cage: React.FC = () => {
     };
   }, [mode]);
 
-  // Helper to update target Tesla value & slider DOM visuals synchronously (zero React setState)
+  // Update target Tesla & vivid #EAFF2B / #FF2A2A slider DOM synchronously (zero React setState)
   const applySliderDom = (tesla: number) => {
     const clamped = Number(clamp(tesla, 0, 20).toFixed(1));
     targetTeslaRef.current = clamped;
@@ -115,22 +114,20 @@ export const Act3Cage: React.FC = () => {
       sliderHandleRef.current.style.borderColor = isDisrupted ? '#F6F3EB' : '#1822FF';
     }
     if (bFieldReadoutRef.current) {
-      bFieldReadoutRef.current.textContent = `${clamped.toFixed(1).padStart(4, '0')} T`;
+      bFieldReadoutRef.current.textContent = `${clamped.toFixed(1)} T`;
     }
     if (pressureReadoutRef.current) {
       pressureReadoutRef.current.textContent = isDisrupted
         ? CONTENT.act3.disruptionWarning
-        : `MAGNETIC PRESSURE: ${pressureMPa.toFixed(1)} MPa`;
+        : `${pressureMPa.toFixed(1)} MPa`;
     }
     if (telemetryBannerRef.current) {
       if (isDisrupted) {
         telemetryBannerRef.current.style.backgroundColor = '#FF2A2A';
         telemetryBannerRef.current.style.color = '#F6F3EB';
-        telemetryBannerRef.current.style.borderColor = '#F6F3EB';
       } else {
         telemetryBannerRef.current.style.backgroundColor = 'transparent';
-        telemetryBannerRef.current.style.color = '#F6F3EB';
-        telemetryBannerRef.current.style.borderColor = 'rgba(246, 243, 235, 0.5)';
+        telemetryBannerRef.current.style.color = '#EAFF2B';
       }
     }
   };
@@ -161,7 +158,7 @@ export const Act3Cage: React.FC = () => {
       gsap.set(masks, { overflow: 'hidden' });
       gsap.set(inners, { yPercent: 115 });
       if (viewportWrapRef.current) {
-        gsap.set(viewportWrapRef.current, { scale: 0.85, opacity: 0 });
+        gsap.set(viewportWrapRef.current, { scale: 0.88, opacity: 0 });
       }
 
       const tl = gsap.timeline({
@@ -214,7 +211,6 @@ export const Act3Cage: React.FC = () => {
         );
       }
 
-      // Subtle living calibration sweep (morphT: 0.35 -> 0) on arrival
       tl.fromTo(
         morphProxyRef.current,
         { t: 0.35 },
@@ -228,14 +224,10 @@ export const Act3Cage: React.FC = () => {
     };
   }, []);
 
-  // High-DPI 60fps 3D Parametric Vector Manifold Engine (auto-paused offscreen via IntersectionObserver)
+  // 60fps Physics Synchronization Loop (drives headline pinch, rotating ring, orbit inertia, & Act3Stellarator3D ref)
   useEffect(() => {
     const section = sectionRef.current;
-    const canvas = canvasRef.current;
-    if (!section || !canvas) return;
-
-    const ctx2d = canvas.getContext('2d');
-    if (!ctx2d) return;
+    if (!section) return;
 
     let isVisible = false;
     const observer = new IntersectionObserver(
@@ -248,39 +240,9 @@ export const Act3Cage: React.FC = () => {
     );
     observer.observe(section);
 
-    let cssSize = 520;
-    const resizeCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cssSize = Math.max(240, Math.round(Math.min(rect.width, rect.height) || rect.width));
-      canvas.width = Math.round(cssSize * dpr);
-      canvas.height = Math.round(cssSize * dpr);
-      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas, { passive: true });
-
     let rafId = 0;
     let lastTs = performance.now();
     let lastPinchKey = '';
-
-    // Helper: push a 2D line segment into 3 depth buckets (0=back, 1=mid, 2=front)
-    type SegList = number[];
-    const strokeBucket = (
-      segs: SegList,
-      strokeStyle: string,
-      lineWidth: number
-    ) => {
-      if (segs.length === 0) return;
-      ctx2d.strokeStyle = strokeStyle;
-      ctx2d.lineWidth = lineWidth;
-      ctx2d.beginPath();
-      for (let i = 0; i < segs.length; i += 4) {
-        ctx2d.moveTo(segs[i], segs[i + 1]);
-        ctx2d.lineTo(segs[i + 2], segs[i + 3]);
-      }
-      ctx2d.stroke();
-    };
 
     const tick = (now: number) => {
       rafId = window.requestAnimationFrame(tick);
@@ -295,7 +257,6 @@ export const Act3Cage: React.FC = () => {
       const dtFactor = dtMs / 16.6667;
       const timeSec = now * 0.001;
 
-      // Smooth spring on Tesla magnetic field strength (snap cleanly at rest)
       const teslaSpring = currentTeslaSpringRef.current;
       stepSpring(teslaSpring, targetTeslaRef.current, 0.16, 0.74, dtFactor);
       if (
@@ -308,7 +269,6 @@ export const Act3Cage: React.FC = () => {
       const bField = clamp(teslaSpring.pos, 0, 20);
       const morphT = clamp(morphProxyRef.current.t, 0, 1);
 
-      // Update coupled headline typography pinch (dirty-checked to avoid idle font rasterization)
       const pinch = computeHeadlinePinch(bField);
 
       if (headlineRef.current && entranceDoneRef.current) {
@@ -321,7 +281,6 @@ export const Act3Cage: React.FC = () => {
           hs.setProperty('--cage-tracking', `${pinch.letterSpacingEm}em`);
         }
 
-        // High-frequency crisp horizontal glitch-shear when plasma disrupts (< 3.0 T)
         if (pinch.isDisrupted) {
           const jitterX =
             (Math.sin(timeSec * 53) * 0.6 + Math.cos(timeSec * 89) * 0.4) *
@@ -335,220 +294,43 @@ export const Act3Cage: React.FC = () => {
         }
       }
 
-      // GPU-composited rotation of outer SVG <textPath> ring (zero SVG text re-rasterization)
+      // GPU-composited rotation of outer SVG <textPath> ring
       ringAngleDegRef.current =
-        (ringAngleDegRef.current + ((pinch.ringAngularSpeedRad * 180) / Math.PI) * dtSec) %
+        (ringAngleDegRef.current +
+          ((pinch.ringAngularSpeedRad * 180) / Math.PI) * dtSec) %
         360;
       if (ringTextSvgRef.current) {
         ringTextSvgRef.current.style.transform = `rotate(${ringAngleDegRef.current.toFixed(2)}deg)`;
       }
 
-      // Update 3D orbit inertia + slow gyroscopic auto-orbit when untouched
+      // 3D orbit inertia + smooth gyroscopic auto-orbit
       const orb = orbitRef.current;
       if (!orb.dragging) {
         orb.velY *= Math.pow(0.92, dtFactor);
         orb.velX *= Math.pow(0.92, dtFactor);
-        orb.rotY += orb.velY + (0.22 + (bField / 20) * 0.14) * dtSec;
+        orb.rotY += orb.velY + (0.24 + (bField / 20) * 0.16) * dtSec;
         orb.rotX = clamp(orb.rotX + orb.velX, -1.25, 1.25);
       }
 
-      // === RENDER HIGH-DPI 3D PARAMETRIC MANIFOLD (BATCHED DEPTH-SHADED STROKES) ===
-      ctx2d.clearRect(0, 0, cssSize, cssSize);
-
-      const cx = cssSize * 0.5;
-      const cy = cssSize * 0.5;
-      const scale = cssSize * 0.185;
-      const params: CagePhysicsParams = {
-        morphT,
-        bFieldTesla: bField,
-        timeSec,
-      };
-
-      const project = (p: { x: number; y: number; z: number }) =>
-        projectPoint3D(p, orb.rotY, orb.rotX, scale, cx, cy, 6.4);
-
-      // 1. 18 Superconducting Field Coils (batched into 2 depth passes)
-      const coilCount = 18;
-      const coilSteps = 26;
-      const coilBack: SegList = [];
-      const coilFront: SegList = [];
-      for (let c = 0; c < coilCount; c++) {
-        const midProj = project(evaluateModularCoilPoint(c, coilCount, 0, params));
-        const bucket = midProj.depth > 0 ? coilFront : coilBack;
-        let prev = project(evaluateModularCoilPoint(c, coilCount, 0, params));
-        for (let s = 1; s <= coilSteps; s++) {
-          const theta = (s / coilSteps) * Math.PI * 2;
-          const curr = project(evaluateModularCoilPoint(c, coilCount, theta, params));
-          bucket.push(prev.sx, prev.sy, curr.sx, curr.sy);
-          prev = curr;
-        }
-      }
-      strokeBucket(coilBack, 'rgba(246, 243, 235, 0.18)', 0.85);
-      strokeBucket(coilFront, 'rgba(246, 243, 235, 0.48)', 1.2);
-
-      // 2. Nested Inner Core Flux Rings (batched into 2 depth passes)
-      const innerBack: SegList = [];
-      const innerFront: SegList = [];
-      const innerParams: CagePhysicsParams = { ...params, radialScale: 0.56 };
-      for (let k = 0; k < 10; k++) {
-        const phi = (k / 10) * Math.PI * 2;
-        const centerProj = project(evaluateMagneticAxisPoint(phi, params));
-        const bucket = centerProj.depth > 0 ? innerFront : innerBack;
-        let prev = project(evaluatePlasmaSurfacePoint(phi, 0, innerParams));
-        for (let s = 1; s <= 22; s++) {
-          const theta = (s / 22) * Math.PI * 2;
-          const curr = project(evaluatePlasmaSurfacePoint(phi, theta, innerParams));
-          bucket.push(prev.sx, prev.sy, curr.sx, curr.sy);
-          prev = curr;
-        }
-      }
-      strokeBucket(innerBack, 'rgba(0, 216, 255, 0.16)', 0.85);
-      strokeBucket(innerFront, 'rgba(0, 216, 255, 0.38)', 1.0);
-
-      // 3. Helical Magnetic Field Lines winding around the 3D surface (safety factor q = 3.1)
-      const safetyFactorQ = 3.1 + (bField / 20) * 0.65;
-      const fieldLineCount = 8;
-      const phiSteps = 96;
-
-      const yellowBands: [SegList, SegList, SegList] = [[], [], []];
-      const cyanBands: [SegList, SegList, SegList] = [[], [], []];
-      const redBands: [SegList, SegList, SegList] = [[], [], []];
-
-      for (let f = 0; f < fieldLineCount; f++) {
-        const thetaOffset = (f / fieldLineCount) * Math.PI * 2;
-        const targetBands =
-          pinch.isDisrupted && f % 3 === 0
-            ? redBands
-            : f % 2 === 1
-              ? cyanBands
-              : yellowBands;
-
-        let prev = project(evaluatePlasmaSurfacePoint(0, thetaOffset, params));
-        for (let s = 1; s <= phiSteps; s++) {
-          const phi = (s / phiSteps) * Math.PI * 2;
-          const theta = phi * safetyFactorQ + thetaOffset;
-          const curr = project(evaluatePlasmaSurfacePoint(phi, theta, params));
-          const a = (prev.alpha + curr.alpha) * 0.5;
-          const band = a < 0.36 ? 0 : a < 0.66 ? 1 : 2;
-          targetBands[band].push(prev.sx, prev.sy, curr.sx, curr.sy);
-          prev = curr;
-        }
-      }
-
-      strokeBucket(cyanBands[0], 'rgba(0, 216, 255, 0.18)', 0.85);
-      strokeBucket(cyanBands[1], 'rgba(0, 216, 255, 0.48)', 1.15);
-      strokeBucket(cyanBands[2], 'rgba(0, 216, 255, 0.88)', 1.65);
-
-      strokeBucket(yellowBands[0], 'rgba(234, 255, 43, 0.18)', 0.85);
-      strokeBucket(yellowBands[1], 'rgba(234, 255, 43, 0.50)', 1.15);
-      strokeBucket(yellowBands[2], 'rgba(234, 255, 43, 0.92)', 1.65);
-
-      if (pinch.isDisrupted) {
-        strokeBucket(redBands[0], 'rgba(255, 42, 42, 0.28)', 1.0);
-        strokeBucket(redBands[1], 'rgba(255, 42, 42, 0.62)', 1.4);
-        strokeBucket(redBands[2], 'rgba(255, 42, 42, 0.96)', 2.0);
-      }
-
-      // 4. Stellarator 5 Distinct Edge Magnetic Island Chains (fade in smoothly with morphT)
-      if (morphT > 0.04) {
-        const islCyanBack: SegList = [];
-        const islCyanFront: SegList = [];
-        const islYelBack: SegList = [];
-        const islYelFront: SegList = [];
-
-        const islandSteps = 56;
-        for (let isl = 0; isl < 5; isl++) {
-          const isCyan = isl % 2 === 0;
-          let prev = project(evaluateMagneticIslandPoint(isl, 0, 0, params));
-          for (let s = 1; s <= islandSteps; s++) {
-            const phi = (s / islandSteps) * Math.PI * 2;
-            const localA = phi * 5 + isl;
-            const curr = project(evaluateMagneticIslandPoint(isl, phi, localA, params));
-            const front = (prev.alpha + curr.alpha) * 0.5 > 0.52;
-            const bucket = isCyan
-              ? front
-                ? islCyanFront
-                : islCyanBack
-              : front
-                ? islYelFront
-                : islYelBack;
-            bucket.push(prev.sx, prev.sy, curr.sx, curr.sy);
-            prev = curr;
-          }
-        }
-        strokeBucket(islCyanBack, `rgba(0, 216, 255, ${(0.28 * morphT).toFixed(3)})`, 1.05);
-        strokeBucket(islCyanFront, `rgba(0, 216, 255, ${(0.92 * morphT).toFixed(3)})`, 1.9);
-        strokeBucket(islYelBack, `rgba(234, 255, 43, ${(0.28 * morphT).toFixed(3)})`, 1.05);
-        strokeBucket(islYelFront, `rgba(234, 255, 43, ${(0.94 * morphT).toFixed(3)})`, 1.9);
-      }
-
-      // 5. Hot #FF1F71 Magnetic Axis Core Filament (flashes #FF2A2A crimson during kink disruption)
-      const axisSteps = 72;
-      const axisBack: SegList = [];
-      const axisFront: SegList = [];
-      let prevAxis = project(evaluateMagneticAxisPoint(0, params));
-      for (let s = 1; s <= axisSteps; s++) {
-        const phi = (s / axisSteps) * Math.PI * 2;
-        const currAxis = project(evaluateMagneticAxisPoint(phi, params));
-        const bucket = (prevAxis.alpha + currAxis.alpha) * 0.5 > 0.5 ? axisFront : axisBack;
-        bucket.push(prevAxis.sx, prevAxis.sy, currAxis.sx, currAxis.sy);
-        prevAxis = currAxis;
-      }
-      const axisRgb = pinch.isDisrupted ? '255, 42, 42' : '255, 31, 113';
-      strokeBucket(axisBack, `rgba(${axisRgb}, 0.45)`, pinch.isDisrupted ? 2.2 : 1.7);
-      strokeBucket(axisFront, `rgba(${axisRgb}, 0.98)`, pinch.isDisrupted ? 3.2 : 2.5);
-
-      // 6. Live Relativistic Plasma Tracer Pulses (crisp high-speed segmented vector arcs)
-      const tracerCount = 18;
-      const tracerSpeed = 0.65 + (bField / 20) * 2.15;
-      const arcSpanPhi = 0.24;
-      const arcSubSteps = 5;
-      const tracerWhite: SegList = [];
-      const tracerYellow: SegList = [];
-      const tracerRed: SegList = [];
-
-      for (let tr = 0; tr < tracerCount; tr++) {
-        const lineIdx = tr % fieldLineCount;
-        const thetaOffset = (lineIdx / fieldLineCount) * Math.PI * 2;
-        const headPhi =
-          (timeSec * tracerSpeed + (tr / tracerCount) * Math.PI * 2) %
-          (Math.PI * 2);
-
-        const bucket = pinch.isDisrupted
-          ? tracerRed
-          : tr % 3 === 0
-            ? tracerWhite
-            : tracerYellow;
-
-        let prev = project(
-          evaluatePlasmaSurfacePoint(headPhi, headPhi * safetyFactorQ + thetaOffset, params)
-        );
-        for (let j = 1; j <= arcSubSteps; j++) {
-          const phi = headPhi - (j / arcSubSteps) * arcSpanPhi;
-          const theta = phi * safetyFactorQ + thetaOffset;
-          const curr = project(evaluatePlasmaSurfacePoint(phi, theta, params));
-          bucket.push(prev.sx, prev.sy, curr.sx, curr.sy);
-          prev = curr;
-        }
-      }
-      strokeBucket(tracerYellow, 'rgba(234, 255, 43, 0.95)', 2.4);
-      strokeBucket(tracerWhite, 'rgba(246, 243, 235, 0.96)', 2.5);
-      if (pinch.isDisrupted) {
-        strokeBucket(tracerRed, 'rgba(255, 42, 42, 0.98)', 2.8);
-      }
+      // Sync mutable visual state directly to Act3Stellarator3D (zero React re-renders)
+      const v = visual3DRef.current;
+      v.morphT = morphT;
+      v.bField = bField;
+      v.rotY = orb.rotY;
+      v.rotX = orb.rotX;
+      v.disruptionFactor = pinch.disruptionFactor;
     };
 
     rafId = window.requestAnimationFrame(tick);
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resizeCanvas);
       observer.disconnect();
     };
   }, []);
 
-  // Interactive 3D Orbit Pointer/Touch Handlers on the Reactor Canvas
-  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  // Interactive 3D Orbit Pointer/Touch Handlers on the 3D Stage
+  const handleStagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const orb = orbitRef.current;
     orb.dragging = true;
     orb.lastPtrX = e.clientX;
@@ -558,7 +340,7 @@ export const Act3Cage: React.FC = () => {
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const orb = orbitRef.current;
     if (!orb.dragging) return;
     const dx = e.clientX - orb.lastPtrX;
@@ -574,7 +356,7 @@ export const Act3Cage: React.FC = () => {
     orb.velX = dRotX;
   };
 
-  const handleCanvasPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handleStagePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     orbitRef.current.dragging = false;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -587,7 +369,7 @@ export const Act3Cage: React.FC = () => {
     if (!track) return;
     const rect = track.getBoundingClientRect();
     const ratio = clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-    const tesla = Math.round(ratio * 200) / 10; // 0.1 T precision
+    const tesla = Math.round(ratio * 200) / 10;
     applySliderDom(tesla);
     spectralAudio.playMagneticStep(tesla, tesla < 3.0);
   };
@@ -633,22 +415,15 @@ export const Act3Cage: React.FC = () => {
       data-act="3"
       data-act-ink="light"
       data-cage-mode={mode}
-      className="relative min-h-[100svh] w-full bg-[#1822FF] text-[#F6F3EB] flex flex-col justify-between px-4 sm:px-6 md:px-10 pt-[3.5rem] pb-[3rem] border-b border-[#111114] overflow-hidden box-border"
+      className="relative min-h-[100svh] w-full bg-[#1822FF] text-[#F6F3EB] flex flex-col justify-center px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 py-14 sm:py-16 overflow-hidden box-border"
     >
-      {/* Top Eyebrow Strip */}
-      <div className="relative z-10 w-full border-t border-[rgba(246,243,235,0.28)] pt-2">
-        <p className="font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#F6F3EB]">
-          {CONTENT.act3.eyebrow}
-        </p>
-      </div>
-
-      {/* Simultaneous 2-Column Swiss Split (>= 680px: 0.92fr Controls + 1.08fr 3D Manifold) */}
+      {/* Simultaneous 2-Column Swiss Split (>= 680px: 0.92fr Controls + 1.08fr Sculptural 3D Manifold) */}
       <div
-        className="relative z-10 my-auto py-3 sm:py-4 act3-split-grid"
+        className="relative z-10 w-full act3-split-grid"
         data-testid="act3-split-grid"
       >
-        {/* Column 1: Acid Tungsten Headline + Topology Tabs + Dieter Rams Tesla Field Instrument */}
-        <div className="flex flex-col gap-3.5 sm:gap-5 min-w-0">
+        {/* Column 1: Acid Tungsten Headline + Topology Switch + Vivid Tesla Pinch Slider */}
+        <div className="flex flex-col gap-5 sm:gap-6 min-w-0">
           <h2
             ref={headlineRef}
             className="cage-headline k-font-bricolage uppercase text-[#EAFF2B] doppler-heading doppler-shear"
@@ -678,9 +453,9 @@ export const Act3Cage: React.FC = () => {
             ))}
           </h2>
 
-          {/* Square-Cornered Hairline Topology Toggle */}
+          {/* Vibrant TOKAMAK / STELLARATOR Topology Switch */}
           <div
-            className="grid grid-cols-1 xl:grid-cols-2 w-full border border-[#F6F3EB] arch-surface"
+            className="grid grid-cols-1 xl:grid-cols-2 w-full border-2 border-[#EAFF2B] arch-surface"
             role="group"
             aria-label="Magnetic confinement topology mode"
           >
@@ -692,10 +467,10 @@ export const Act3Cage: React.FC = () => {
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => setMode(item.id)}
-                  className={`font-mono-lab text-[10px] sm:text-[11px] font-semibold tracking-[0.04em] px-2.5 sm:px-3 py-2 min-h-[34px] sm:min-h-[38px] arch-surface whitespace-nowrap truncate cursor-pointer border-b xl:border-b-0 xl:border-r last:border-b-0 last:border-r-0 border-[#F6F3EB] ${
+                  className={`font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.05em] px-3 py-2.5 min-h-[38px] arch-surface whitespace-nowrap truncate cursor-pointer border-b-2 xl:border-b-0 xl:border-r-2 last:border-b-0 last:border-r-0 border-[#EAFF2B] ${
                     isActive
                       ? 'bg-[#EAFF2B] text-[#1822FF]'
-                      : 'bg-transparent text-[#F6F3EB]'
+                      : 'bg-transparent text-[#F6F3EB] hover:bg-[#EAFF2B]/15'
                   }`}
                 >
                   {item.label}
@@ -704,28 +479,25 @@ export const Act3Cage: React.FC = () => {
             })}
           </div>
 
-          {/* Dieter Rams Horizontal Tesla Field Pinch Instrument (0.0 T -> 20.0 T) */}
-          <div className="w-full flex flex-col gap-2">
-            {/* Live Tabular B-Field & Magnetic Pressure / Disruption Readout */}
+          {/* Tactile B-FIELD Slider + ONLY Vivid #EAFF2B Readout */}
+          <div className="w-full flex flex-col gap-2.5">
             <div
               ref={telemetryBannerRef}
-              className="w-full border px-2.5 py-1.5 arch-surface font-mono-lab text-[10px] sm:text-[11px] tracking-[0.05em] flex flex-wrap items-center justify-between gap-1.5"
-              style={{ borderColor: 'rgba(246, 243, 235, 0.5)' }}
+              className="w-full px-1 py-1 arch-surface font-mono-lab text-xs sm:text-sm font-bold tracking-[0.06em] text-[#EAFF2B] flex flex-wrap items-center gap-2"
               data-testid="tesla-telemetry-banner"
             >
-              <span className="font-bold whitespace-nowrap">
+              <span>
                 B-FIELD: <span ref={bFieldReadoutRef}>12.0 T</span>
               </span>
+              <span aria-hidden="true">//</span>
               <span
                 ref={pressureReadoutRef}
-                className="font-semibold tracking-[0.04em]"
                 data-testid="tesla-pressure-readout"
               >
-                MAGNETIC PRESSURE: 57.3 MPa
+                57.3 MPa
               </span>
             </div>
 
-            {/* Precision 20-Notch Interactive Slider Track */}
             <div
               ref={sliderTrackRef}
               role="slider"
@@ -741,16 +513,14 @@ export const Act3Cage: React.FC = () => {
               onPointerUp={handleSliderPointerUp}
               onPointerCancel={handleSliderPointerUp}
               onKeyDown={handleSliderKeyDown}
-              className="relative w-full h-9 sm:h-10 border border-[#F6F3EB] arch-surface cursor-ew-resize select-none touch-none flex items-center"
+              className="relative w-full h-10 sm:h-11 border-2 border-[#EAFF2B] arch-surface cursor-ew-resize select-none touch-none flex items-center"
             >
-              {/* Active Fill Bar */}
               <div
                 ref={sliderFillRef}
-                className="pointer-events-none absolute inset-y-0 left-0 bg-[#EAFF2B]/25 arch-surface"
-                style={{ width: '60%', opacity: 0.28 }}
+                className="pointer-events-none absolute inset-y-0 left-0 bg-[#EAFF2B] arch-surface"
+                style={{ width: '60%', opacity: 0.3 }}
               />
 
-              {/* 20 Precision Calibrated Tick Notches */}
               <div
                 className="pointer-events-none absolute inset-0 flex justify-between px-0"
                 aria-hidden="true"
@@ -765,91 +535,36 @@ export const Act3Cage: React.FC = () => {
                         idx < 3
                           ? '#FF2A2A'
                           : idx % 5 === 0
-                            ? 'rgba(246, 243, 235, 0.78)'
-                            : 'rgba(246, 243, 235, 0.32)',
+                            ? '#EAFF2B'
+                            : 'rgba(234, 255, 43, 0.35)',
                     }}
                   />
                 ))}
               </div>
 
-              {/* Tactile Square Handle */}
               <div
                 ref={sliderHandleRef}
-                className="pointer-events-none absolute top-0 bottom-0 w-3.5 -translate-x-1/2 bg-[#EAFF2B] border-2 border-[#1822FF] arch-surface"
+                className="pointer-events-none absolute top-0 bottom-0 w-4 -translate-x-1/2 bg-[#EAFF2B] border-2 border-[#1822FF] arch-surface"
                 style={{ left: '60%' }}
               />
-            </div>
-
-            {/* Precision-Aligned Scale Bounds (0%, 15%, 60%, 100% locked directly to tick notches) */}
-            <div className="relative h-3.5 w-full font-mono-lab text-[9.5px] tracking-[0.08em] text-[#F6F3EB]/80">
-              <span className="absolute left-0">0.0 T</span>
-              <span className="hidden lg:inline absolute left-[15%] -translate-x-1/2 text-[#FF6B6B]">
-                3.0 T
-              </span>
-              <span className="absolute left-[60%] -translate-x-1/2">12.0 T</span>
-              <span className="absolute right-0">20.0 T</span>
             </div>
           </div>
         </div>
 
-        {/* Column 2: Commanding 3D-Projected Parametric Vector Manifold + Rotating SVG Ring */}
+        {/* Column 2: Sculptural 3D Tokamak <-> Stellarator Framed by Rotating SVG <textPath> Ring */}
         <div
           ref={viewportWrapRef}
           className="flex items-center justify-center min-w-0"
         >
           <div
             className="relative aspect-square flex items-center justify-center"
-            style={{ width: 'min(100%, 560px, 68svh)' }}
+            style={{ width: 'min(100%, 620px, 76svh)' }}
           >
-            {/* Static Architectural Aperture Rings & Crosshairs */}
-            <svg
-              viewBox="0 0 600 600"
-              className="pointer-events-none absolute inset-0 w-full h-full"
-              aria-hidden="true"
-            >
-              <circle
-                cx="300"
-                cy="300"
-                r="288"
-                fill="none"
-                stroke="#F6F3EB"
-                strokeOpacity="0.24"
-                strokeWidth="1"
-              />
-              <circle
-                cx="300"
-                cy="300"
-                r="242"
-                fill="none"
-                stroke="#F6F3EB"
-                strokeOpacity="0.22"
-                strokeWidth="1"
-              />
-              <line
-                x1="300"
-                y1="10"
-                x2="300"
-                y2="590"
-                stroke="#F6F3EB"
-                strokeOpacity="0.14"
-                strokeWidth="1"
-              />
-              <line
-                x1="10"
-                y1="300"
-                x2="590"
-                y2="300"
-                stroke="#F6F3EB"
-                strokeOpacity="0.14"
-                strokeWidth="1"
-              />
-            </svg>
-
             {/* GPU-Composited Rotating SVG <textPath> Outer Telemetry Ring */}
             <svg
               ref={ringTextSvgRef}
               viewBox="0 0 600 600"
-              className="pointer-events-none absolute inset-0 w-full h-full"
+              className="pointer-events-none absolute inset-0 w-full h-full z-20"
               style={{ transformOrigin: '50% 50%' }}
               aria-hidden="true"
             >
@@ -857,9 +572,10 @@ export const Act3Cage: React.FC = () => {
                 <path id="cage-field-ring-path" d={ringTextPath} />
               </defs>
               <text
-                fill="#F6F3EB"
-                fontSize="10.4"
-                letterSpacing="2.85"
+                fill="#EAFF2B"
+                fontSize="10.2"
+                fontWeight="700"
+                letterSpacing="2.9"
                 className="font-mono-lab"
               >
                 <textPath href="#cage-field-ring-path" startOffset="0%">
@@ -868,31 +584,21 @@ export const Act3Cage: React.FC = () => {
               </text>
             </svg>
 
-            {/* High-DPI Interactive 3D Parametric Vector Manifold Canvas */}
-            <canvas
-              ref={canvasRef}
-              onPointerDown={handleCanvasPointerDown}
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
-              onPointerCancel={handleCanvasPointerUp}
-              data-testid="act3-manifold-canvas"
-              data-interactive="true"
-              aria-label={
+            {/* Massive Interactive Solid 3D Tokamak <-> Stellarator WebGL Engine */}
+            <Act3Stellarator3D
+              stateRef={visual3DRef}
+              ariaLabel={
                 mode === 'tokamak'
                   ? 'Interactive 3D Tokamak symmetric toroidal magnetic confinement manifold'
                   : 'Interactive 3D Wendelstein 7-X 5-fold twisted Stellarator helical manifold with edge magnetic islands'
               }
-              className="relative z-10 w-[82%] h-[82%] cursor-crosshair active:cursor-grabbing touch-none"
+              onPointerDown={handleStagePointerDown}
+              onPointerMove={handleStagePointerMove}
+              onPointerUp={handleStagePointerUp}
+              className="relative z-10 w-[90%] h-[90%] cursor-grab active:cursor-grabbing touch-none"
             />
           </div>
         </div>
-      </div>
-
-      {/* Bottom ΔT Telemetry Strip */}
-      <div className="relative z-10 w-full border-t border-[rgba(246,243,235,0.45)] pt-2.5">
-        <p className="font-mono-lab text-[10px] sm:text-xs tracking-[0.06em] text-[#F6F3EB]">
-          {CONTENT.act3.telemetryStrip}
-        </p>
       </div>
     </section>
   );

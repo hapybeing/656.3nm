@@ -9,25 +9,25 @@ import {
   mixPaperToHex,
   stepCoupledWordmarkSprings,
   stepMarqueeOffset,
-  WORDMARK_SPECTRAL_COLORS,
   type MarqueeState,
 } from '../physics/epilogueMath';
+import { Act5Ribbon3D } from './three/Act5Ribbon3D';
 
 const WORDMARK_CHARS = Array.from(CONTENT.act5.wordmark);
 
-/**
- * ACT 05 — EPILOGUE
- * - Opposing velocity-coupled magnetic shear marquees (Band A Gold left, Band B Tungsten right)
- *   with Lenis velocity boost, elastic direction reversal, --slnt shear, RGB echo & eddy-current hover braking
- * - 656.3nm Coupled-Spring Newton's Cradle Wordmark (7 chars with neighbor coupling = 0.22,
- *   hover/touch wave propagation, click/tap detonation, Bricolage Grotesque axis morphing & spectral emission flash)
- * - Subtle 1px vertical harmonic spectral emission hairlines backdrop scaling with kinetic energy
- * Zero React useState inside rAF.
- */
 export interface Act5EpilogueProps {
   onReplayShutter?: () => void;
 }
 
+/**
+ * ACT 05 — EPILOGUE (Opposing Marquees + 3D Spectral Prism Ribbon + Coupled-Spring 656.3nm)
+ * Brutally decluttered Carbon Tungsten (#111114) grand finale:
+ * - Opposing colourful velocity-coupled shear marquees (Solar Gold #FFB800 + Balmer Pink/Cyan dividers)
+ * - Full-width sculptural 3D Iridescent Spectral Prism Ribbon (Act5Ribbon3D) coupled directly via
+ *   uniform float uCharEnergy[7] to the 7 Newton's Cradle wordmark springs
+ * - Crisp [ ↺ REPLAY 16,000 FPS SHUTTER ] button
+ * Zero colophon archive copy, zero vertical grey divider hairlines, zero duplicate bottom 656.3nm text.
+ */
 export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) => {
   const footerRef = useRef<HTMLElement | null>(null);
 
@@ -39,10 +39,10 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
   const brakeARef = useRef(false);
   const brakeBRef = useRef(false);
 
-  // Coupled-spring 7-char wordmark & emission hairline backdrop refs
+  // Coupled-spring 7-char wordmark & 3D ribbon coupling ref
   const charRefs = useRef<Array<HTMLSpanElement | null>>([]);
-  const hairlineRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const springsRef = useRef(createWordmarkSprings(WORDMARK_CHARS.length));
+  const charEnergyRef = useRef<Float32Array>(new Float32Array(7));
   const lastTouchCharRef = useRef<number>(-1);
 
   useEffect(() => {
@@ -80,7 +80,6 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const lastCharKeys = new Array<string>(WORDMARK_CHARS.length).fill('');
-    let lastEnergyKey = '';
 
     let rafId = 0;
     let lastTs = performance.now();
@@ -136,16 +135,17 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
         }
       }
 
-      // 2. Coupled 1D Newton's Cradle Spring-Wave Solver for "656.3nm"
-      const { poses, totalEnergy } = stepCoupledWordmarkSprings(
-        springsRef.current,
-        dtFactor
-      );
+      // 2. Coupled 1D Newton's Cradle Spring-Wave Solver for "656.3nm" -> feeds Act5Ribbon3D!
+      const { poses } = stepCoupledWordmarkSprings(springsRef.current, dtFactor);
+      const energyArr = charEnergyRef.current;
 
       for (let i = 0; i < poses.length; i++) {
+        const p = poses[i];
+        // Feed signed normalized spring wave displacement (-1..+1) directly into GLSL uCharEnergy[7]
+        energyArr[i] = Math.max(-1.2, Math.min(1.2, -p.yPx / 18));
+
         const el = charRefs.current[i];
         if (!el) continue;
-        const p = poses[i];
         const key = `${p.yPx}|${p.tiltDeg}|${p.wght}|${p.wdth}|${p.colorMix}`;
         if (key === lastCharKeys[i]) continue;
         lastCharKeys[i] = key;
@@ -158,21 +158,6 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
         st.setProperty('--wght', String(p.wght));
         st.setProperty('--wdth', String(p.wdth));
         st.color = mixPaperToHex(p.spectralHex, p.colorMix);
-      }
-
-      // 3. Subtle 1px Vertical Spectral Emission Hairlines Backdrop
-      const energyKey = totalEnergy.toFixed(2);
-      if (energyKey !== lastEnergyKey) {
-        lastEnergyKey = energyKey;
-        for (let i = 0; i < hairlineRefs.current.length; i++) {
-          const line = hairlineRefs.current[i];
-          if (!line) continue;
-          const localE = poses[i]?.colorMix ?? 0;
-          const combined = Math.min(1, 0.14 + totalEnergy * 0.42 + localE * 0.55);
-          const scaleY = 0.68 + totalEnergy * 0.22 + localE * 0.18;
-          line.style.opacity = combined.toFixed(3);
-          line.style.transform = `scaleY(${Math.min(1.12, scaleY).toFixed(3)})`;
-        }
       }
     };
 
@@ -217,11 +202,11 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
       data-act-ink="light"
       className="relative min-h-[100svh] w-full bg-[#111114] text-[#F6F3EB] flex flex-col justify-between pt-11 sm:pt-12 overflow-hidden"
     >
-      {/* Opposing Velocity-Coupled Magnetic Shear Marquee Strips */}
-      <div className="relative z-10 w-full border-t border-[rgba(246,243,235,0.22)]">
+      {/* Opposing Colourful Velocity-Coupled Magnetic Shear Marquee Strips */}
+      <div className="relative z-10 w-full">
         {/* Band A — Solar Epilogue Gold (#FFB800), gliding LEFT */}
         <div
-          className="w-full bg-[#FFB800] text-[#111114] border-b border-[#111114] py-3.5 sm:py-4 overflow-hidden select-none"
+          className="w-full bg-[#FFB800] text-[#111114] py-3.5 sm:py-4 overflow-hidden select-none"
           data-testid="marquee-band-a"
           onPointerEnter={() => {
             brakeARef.current = true;
@@ -256,9 +241,9 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
           </div>
         </div>
 
-        {/* Band B — Carbon Tungsten (#111114) with Balmer Pink & Cyan dividers, gliding RIGHT */}
+        {/* Band B — Carbon Tungsten (#111114) with Vivid Balmer Pink & Cyan Dividers, gliding RIGHT */}
         <div
-          className="w-full bg-[#111114] text-[#F6F3EB] border-b border-[rgba(246,243,235,0.22)] py-3.5 sm:py-4 overflow-hidden select-none"
+          className="w-full bg-[#111114] text-[#F6F3EB] border-b-2 border-[#FF1F71] py-3.5 sm:py-4 overflow-hidden select-none"
           data-testid="marquee-band-b"
           onPointerEnter={() => {
             brakeBRef.current = true;
@@ -276,7 +261,7 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
           <div
             ref={trackBRef}
             data-testid="marquee-track-b"
-            className="flex items-center whitespace-nowrap font-mono-lab text-xs sm:text-sm font-medium tracking-[0.08em] will-change-transform"
+            className="flex items-center whitespace-nowrap font-mono-lab text-xs sm:text-sm font-bold tracking-[0.08em] will-change-transform"
           >
             {[0, 1, 2, 3].map((rep) => (
               <div
@@ -287,7 +272,7 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
               >
                 <span className="px-5 shrink-0">{CONTENT.act5.bandB}</span>
                 <span
-                  className="inline-block w-0.5 h-4 shrink-0"
+                  className="inline-block w-1 h-4 shrink-0"
                   style={{ backgroundColor: rep % 2 === 0 ? '#FF1F71' : '#00D8FF' }}
                   aria-hidden="true"
                 />
@@ -297,28 +282,13 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
         </div>
       </div>
 
-      {/* Massive Full-Width Coupled-Spring 656.3nm Wordmark Stage */}
-      <div className="relative w-full px-4 sm:px-6 md:px-10 pt-16 sm:pt-24 md:pt-28 pb-12 sm:pb-16 flex flex-col justify-end">
-        {/* Subtle 1px Vertical Spectral Emission Hairlines Backdrop */}
-        <div
-          className="pointer-events-none absolute inset-x-4 sm:inset-x-6 md:inset-x-10 inset-y-8 flex items-center justify-around"
-          aria-hidden="true"
-        >
-          {WORDMARK_SPECTRAL_COLORS.map((hex, idx) => (
-            <span
-              key={`emission-line-${idx}`}
-              ref={(el) => {
-                hairlineRefs.current[idx] = el;
-              }}
-              className="block w-px h-full origin-center"
-              style={{
-                backgroundColor: hex,
-                opacity: 0.14,
-                transform: 'scaleY(0.68)',
-              }}
-            />
-          ))}
-        </div>
+      {/* Monumental 3D Iridescent Spectral Prism Ribbon + Coupled-Spring 656.3nm Wordmark Stage */}
+      <div className="relative flex-1 w-full flex flex-col items-center justify-center px-4 sm:px-6 md:px-10 py-10">
+        {/* Full-Width 3D Sculptural Spectral Prism Ribbon behind wordmark */}
+        <Act5Ribbon3D
+          charEnergyRef={charEnergyRef}
+          className="absolute inset-0 z-[1] w-full h-full"
+        />
 
         {/* Interactive 7-Char Coupled Newton's Cradle Wordmark */}
         <div
@@ -360,24 +330,20 @@ export const Act5Epilogue: React.FC<Act5EpilogueProps> = ({ onReplayShutter }) =
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Minimal 1px Colophon Footer + Hairline Shutter Replay Loop */}
-        <div className="relative z-10 mt-10 sm:mt-14 pt-4 pb-10 sm:pb-12 border-t border-[rgba(246,243,235,0.26)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#F6F3EB]/85">
-          <span>{CONTENT.act5.colophon}</span>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            {onReplayShutter && (
-              <button
-                type="button"
-                onClick={onReplayShutter}
-                data-testid="epilogue-replay-btn"
-                className="pointer-events-auto cursor-pointer border border-[#F6F3EB]/75 px-2.5 py-1 text-[10px] sm:text-[11px] font-semibold tracking-[0.07em] bg-transparent text-[#F6F3EB] hover:bg-[#FFB800] hover:text-[#111114] hover:border-[#FFB800] arch-surface whitespace-nowrap chrome-ink-transition"
-              >
-                {CONTENT.act5.replayShutterLabel}
-              </button>
-            )}
-            <span>{CONTENT.brand}</span>
-          </div>
-        </div>
+      {/* Clean Bottom Replay Action ONLY (ZERO grey archive copy or duplicate 656.3nm text) */}
+      <div className="relative z-10 w-full px-4 sm:px-6 md:px-10 pb-8 sm:pb-10 flex items-center justify-center">
+        {onReplayShutter && (
+          <button
+            type="button"
+            onClick={onReplayShutter}
+            data-testid="epilogue-replay-btn"
+            className="pointer-events-auto cursor-pointer border-2 border-[#FFB800] px-4 py-2 font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] bg-[#111114] text-[#FFB800] hover:bg-[#FFB800] hover:text-[#111114] arch-surface whitespace-nowrap chrome-ink-transition"
+          >
+            {CONTENT.act5.replayShutterLabel}
+          </button>
+        )}
       </div>
     </footer>
   );

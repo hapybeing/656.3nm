@@ -21,6 +21,7 @@ import {
 } from '../physics/lawsonMath';
 import { clamp } from '../physics/motionMath';
 import { KineticText } from './KineticText';
+import { Act4Core3D, type Act4VisualState } from './three/Act4Core3D';
 
 export interface Act4IgnitionProps {
   onIgnitedChange?: (ignited: boolean) => void;
@@ -35,14 +36,13 @@ function formatDialValue(idx: number, val: number): string {
 }
 
 /**
- * ACT 04 — THE IGNITION INSTRUMENT (Lawson Criterion n · T · τE)
- * Full-bleed Dieter Rams lab console with:
- * - 3 rotational-inertia SVG instrument dials (angular drag, vertical fallback, wheel, flick momentum, 6° magnetic detents)
- * - Real Lawson Triple Product (keV·s·m^-3) & Fusion Gain Q calculation at 60fps via direct DOM refs
- * - Pre-ignition thermal stress (0.65..0.99 Q: micro-jitter, variable-axis flare, Balmer RGB aberration, tightening crosshairs)
- * - Breakeven X-Ray Flash (Q >= 1.00): 260ms blinding #FFFFFF overexposure flash + circular shockfront ring + console recoil
- * - Inverted Carbon Tungsten (#111114) self-sustaining burning equilibrium + live 60fps double-harmonic burn waveform
- * - Reversible quench when dialing back below Q = 1.00 or clicking [ QUENCH ↓ ]
+ * ACT 04 — THE IGNITION INSTRUMENT (Lawson Criterion n · T · τE + Live 3D Fusion Core)
+ * Brutally decluttered Swiss instrument stage:
+ * - Clean header: IGNITION THRESHOLD + [ AUTO-IGNITE ↗ ] / [ QUENCH ↓ ]
+ * - Live 3D Fusion Core Reactor (Act4Core3D: boiling GLSL star + 3 concentric glossy gimbal rings)
+ * - 3 vivid coloured rotational-inertia dials (n #FF1F71, T #00D8FF, τE #00E676/#FFB800) with zero grey card boxes
+ * - Vibrant 24-segment Q Breakeven bar + live burning equilibrium waveform + 260ms X-ray flash
+ * Zero muted eyebrow text, zero grey P=... subtext, zero faint grey container grid borders.
  */
 export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) => {
   const [isIgnited, setIsIgnited] = useState(false);
@@ -64,20 +64,26 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
   const dialCrosshairRefs = useRef<Array<SVGGElement | null>>([]);
   const dialValueRefs = useRef<Array<SVGTextElement | null>>([]);
 
-  // Bottom bar, live telemetry & phase-locked burn waveform refs
-  const tripleProductRef = useRef<HTMLSpanElement | null>(null);
+  // Bottom bar, live Q readout & phase-locked burn waveform refs
   const qReadoutRef = useRef<HTMLSpanElement | null>(null);
   const segmentRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const burnWavePrimaryRef = useRef<SVGPathElement | null>(null);
   const burnWaveHarmonicRef = useRef<SVGPathElement | null>(null);
 
-  // Mutable 60fps physics state (zero useState in rAF or drag loops)
+  // Mutable 60fps physics & 3D star-core state (zero useState in rAF / drag)
   const dialStatesRef = useRef<DialInertiaState[]>(
     LAWSON_DIAL_CONFIGS.map((cfg) => {
       const norm = valueToNorm(cfg.defaultVal, cfg);
       return { norm, vel: 0, detentIdx: Math.round(norm * 60) };
     })
   );
+  const visual3DRef = useRef<Act4VisualState>({
+    nNorm: valueToNorm(LAWSON_DIAL_CONFIGS[0].defaultVal, LAWSON_DIAL_CONFIGS[0]),
+    tNorm: valueToNorm(LAWSON_DIAL_CONFIGS[1].defaultVal, LAWSON_DIAL_CONFIGS[1]),
+    tauNorm: valueToNorm(LAWSON_DIAL_CONFIGS[2].defaultVal, LAWSON_DIAL_CONFIGS[2]),
+    qGain: 0.19,
+    isIgnited: false,
+  });
   const dragInfoRef = useRef<{
     dialIdx: number;
     pointerId: number;
@@ -165,10 +171,8 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     );
     observer.observe(section);
 
-    // Dirty-check caches to avoid redundant DOM & font writes when settled
     const lastNorms = [-1, -1, -1];
     let lastStressKey = '';
-    let lastTripleText = '';
     let lastQText = '';
     let lastFilledCount = -1;
     let lastIgnitedBarState: boolean | null = null;
@@ -191,7 +195,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
       const states = dialStatesRef.current;
       const draggingIdx = dragInfoRef.current?.dialIdx ?? -1;
 
-      // 1. Step rotational inertia & 6° magnetic detent ticks on all 3 dials
       let anyMoved = false;
       for (let i = 0; i < 3; i++) {
         const isDraggingThis = draggingIdx === i;
@@ -243,13 +246,19 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         }
       }
 
-      // 2. Compute live Lawson Triple Product & Fusion Gain Q
       const nVal = normToValue(states[0].norm, LAWSON_DIAL_CONFIGS[0]);
       const tVal = normToValue(states[1].norm, LAWSON_DIAL_CONFIGS[1]);
       const tauVal = normToValue(states[2].norm, LAWSON_DIAL_CONFIGS[2]);
       const telemetry = computeLawsonTelemetry(nVal, tVal, tauVal);
 
-      // 3. Detect discrete breakeven ignition crossing (Q >= 1.00) or reversible quench
+      // Feed live Lawson physics directly into Act4Core3D mutable ref (zero React setState)
+      const v3d = visual3DRef.current;
+      v3d.nNorm = states[0].norm;
+      v3d.tNorm = states[1].norm;
+      v3d.tauNorm = states[2].norm;
+      v3d.qGain = telemetry.qGain;
+      v3d.isIgnited = telemetry.isIgnited;
+
       if (telemetry.isIgnited !== ignitedRef.current) {
         ignitedRef.current = telemetry.isIgnited;
         setIsIgnited(telemetry.isIgnited);
@@ -261,29 +270,20 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         }
       }
 
-      // Subtle rising harmonic tension while approaching breakeven during active interaction
       if (anyMoved && telemetry.qGain >= 0.7 && telemetry.qGain < 1.0) {
         spectralAudio.pulseIgnitionTension(telemetry.qGain);
       }
 
-      // 4. Update tabular Triple Product & Q status readouts
-      const tripleText = `P = ${telemetry.tripleProduct10e21.toFixed(2)} × 10²¹ keV·s·m⁻³  //  T = ${telemetry.temperatureKeV.toFixed(1)} keV`;
-      if (tripleProductRef.current && tripleText !== lastTripleText) {
-        lastTripleText = tripleText;
-        tripleProductRef.current.textContent = tripleText;
-      }
-
       const qLabel = telemetry.isIgnited
-        ? `Q = ${telemetry.qGain.toFixed(2)}  //  IGNITION — SELF-SUSTAINING BURN`
+        ? `Q = ${telemetry.qGain.toFixed(2)}  //  IGNITION`
         : telemetry.qGain >= 0.85
-          ? `Q = ${telemetry.qGain.toFixed(2)}  //  CRITICAL THRESHOLD`
+          ? `Q = ${telemetry.qGain.toFixed(2)}  //  CRITICAL`
           : `Q = ${telemetry.qGain.toFixed(2)}  //  BREAKEVEN`;
       if (qReadoutRef.current && qLabel !== lastQText) {
         lastQText = qLabel;
         qReadoutRef.current.textContent = qLabel;
       }
 
-      // 5. Update 24-segment spectral progression bar
       const filledCount = Math.round(telemetry.barFillRatio * SEGMENT_COUNT);
       if (
         filledCount !== lastFilledCount ||
@@ -302,7 +302,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         }
       }
 
-      // 6. Pre-ignition thermal stress (0.65..0.99 Q) vs Serene Harmonic Lock (Q >= 1.00)
       const stress = computeThermalStress(telemetry.qGain);
       if (headlineRef.current) {
         const hs = headlineRef.current.style;
@@ -328,7 +327,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         }
       }
 
-      // Tighten geometric plasma resonance crosshair arcs around the 3 dials
       for (let i = 0; i < 3; i++) {
         const ch = dialCrosshairRefs.current[i];
         if (!ch) continue;
@@ -341,7 +339,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         );
       }
 
-      // 7. Live 60fps Phase-Locked Fusion Burn Waveform when ignited (Q >= 1.00)
       if (
         telemetry.isIgnited &&
         burnWavePrimaryRef.current &&
@@ -368,7 +365,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     };
   }, []);
 
-  // Cancel any auto-ignition tween immediately when user grabs a dial
   const cancelAutoTween = () => {
     if (autoTweenRef.current) {
       autoTweenRef.current.kill();
@@ -376,7 +372,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     }
   };
 
-  // Rotational + vertical fallback pointer interaction on each SVG dial
   const handleDialPointerDown = (
     dialIdx: number,
     e: React.PointerEvent<SVGSVGElement>
@@ -414,11 +409,9 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
 
     let deltaNorm = 0;
     if (radius > 24) {
-      // Direct circular rotational drag around dial center
       const dAngle = shortestAngleDelta(drag.lastAngle, angle);
       deltaNorm = dAngle / (Math.PI * 1.85);
     } else {
-      // Smooth vertical drag fallback near dial center / narrow touch gestures
       deltaNorm = (drag.lastClientY - e.clientY) / 160;
     }
 
@@ -447,7 +440,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     dialIdx: number,
     e: React.WheelEvent<SVGSVGElement>
   ) => {
-    // Allow subtle precision scroll-wheel tweaking only when Shift is held or explicitly focused
     if (document.activeElement !== e.currentTarget) return;
     e.preventDefault();
     cancelAutoTween();
@@ -460,7 +452,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     dialIdx: number,
     e: React.KeyboardEvent<SVGSVGElement>
   ) => {
-    const step = e.shiftKey ? 0.1 : 0.0333; // ~2 magnetic 6° detents per arrow press
+    const step = e.shiftKey ? 0.1 : 0.0333;
     const st = dialStatesRef.current[dialIdx];
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -485,7 +477,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
     }
   };
 
-  // [ AUTO-IGNITE ↗ ] / [ QUENCH ↓ ] smooth GSAP expo.inOut dial choreography
   const handleToggleAutoIgnite = () => {
     cancelAutoTween();
     const states = dialStatesRef.current;
@@ -526,7 +517,6 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
   };
 
   const bgClass = isIgnited ? 'bg-[#111114] text-[#F6F3EB]' : 'bg-[#F6F3EB] text-[#111114]';
-  const borderClass = isIgnited ? 'border-[#F6F3EB]' : 'border-[#111114]';
   const inkHex = isIgnited ? '#F6F3EB' : '#111114';
   const paperHex = isIgnited ? '#111114' : '#F6F3EB';
 
@@ -537,7 +527,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
       data-act="4"
       data-act-ink={isIgnited ? 'light' : 'dark'}
       data-ignited={isIgnited ? 'true' : 'false'}
-      className={`relative min-h-[100svh] w-full flex flex-col justify-between px-4 sm:px-6 md:px-10 pt-[3.25rem] pb-[2.75rem] border-b border-[#111114] chrome-ink-transition box-border ${bgClass}`}
+      className={`relative min-h-[100svh] w-full flex flex-col justify-between px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-14 pt-[3.75rem] pb-6 sm:pb-8 overflow-hidden chrome-ink-transition box-border ${bgClass}`}
     >
       {/* Fullscreen Fixed 260ms Pure-White X-Ray Overexposure Flash + Shockfront Ring */}
       <div
@@ -565,58 +555,48 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
         />
       </svg>
 
-      {/* Master 1px-Bordered Unified Single-Viewport Dieter Rams Console Frame */}
+      {/* Borderless Open Instrument Stage (ZERO faint grey grid boxes) */}
       <div
         ref={consoleRef}
         data-testid="act4-console-frame"
-        className={`relative z-10 w-full flex-1 flex flex-col justify-between border arch-surface chrome-ink-transition ${borderClass} ${bgClass}`}
+        className="relative z-10 w-full flex-1 flex flex-col justify-between gap-2 sm:gap-3"
       >
-        {/* Top Console Bar: Compact Eyebrow + Live Triple Product + Headline (Left) & [ AUTO-IGNITE ↗ ] Switch (Right) */}
-        <div className={`border-b px-4 sm:px-6 md:px-7 py-3 sm:py-4 chrome-ink-transition ${borderClass}`}>
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
-            <div className="min-w-0 flex flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                <p className="font-mono-lab text-[9.5px] sm:text-[11px] tracking-[0.07em]">
-                  {CONTENT.act4.eyebrow}
-                </p>
-                <span
-                  ref={tripleProductRef}
-                  data-testid="triple-product-readout"
-                  className="font-mono-lab text-[9.5px] sm:text-[11px] font-semibold tracking-[0.05em]"
-                  style={{ color: isIgnited ? '#FFB800' : '#111114' }}
-                >
-                  P = 5.79 × 10²¹ keV·s·m⁻³  //  T = 12.9 keV
-                </span>
-              </div>
+        {/* Top Row: Clean IGNITION THRESHOLD + [ AUTO-IGNITE ↗ ] / [ QUENCH ↓ ] */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+          <h2
+            ref={headlineRef}
+            data-testid="act4-headline"
+            className="ignition-headline k-font-bricolage font-extrabold uppercase"
+            style={{ color: isIgnited ? '#FFB800' : '#111114' }}
+          >
+            <KineticText text={CONTENT.act4.headline} font="bricolage" />
+          </h2>
 
-              <h2
-                ref={headlineRef}
-                data-testid="act4-headline"
-                className="ignition-headline k-font-bricolage font-extrabold uppercase"
-                style={{ color: isIgnited ? '#F6F3EB' : '#111114' }}
-              >
-                <KineticText text={CONTENT.act4.headline} font="bricolage" />
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleToggleAutoIgnite}
-              data-testid="auto-ignite-btn"
-              className={`shrink-0 font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.08em] px-3 sm:px-3.5 py-2 border arch-surface cursor-pointer whitespace-nowrap chrome-ink-transition ${
-                isIgnited
-                  ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
-                  : 'border-[#111114] bg-transparent text-[#111114] hover:bg-[#111114] hover:text-[#F6F3EB]'
-              }`}
-            >
-              {isIgnited ? CONTENT.act4.quenchLabel : CONTENT.act4.autoIgniteLabel}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleToggleAutoIgnite}
+            data-testid="auto-ignite-btn"
+            className={`shrink-0 font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] px-4 py-2.5 border-2 arch-surface cursor-pointer whitespace-nowrap chrome-ink-transition ${
+              isIgnited
+                ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
+                : 'border-[#111114] bg-[#111114] text-[#F6F3EB] hover:bg-[#FF1F71] hover:border-[#FF1F71]'
+            }`}
+          >
+            {isIgnited ? CONTENT.act4.quenchLabel : CONTENT.act4.autoIgniteLabel}
+          </button>
         </div>
 
-        {/* Middle Dial Deck: 3-Column Horizontal Row starting at >= 600px */}
+        {/* Center Horizon: Live 3D Fusion Core Star + 3 Concentric Glossy Metallic Gimbal Rings */}
+        <div className="relative w-full flex items-center justify-center my-auto">
+          <Act4Core3D
+            stateRef={visual3DRef}
+            className="w-[260px] h-[200px] sm:w-[360px] sm:h-[250px] md:w-[440px] md:h-[270px]"
+          />
+        </div>
+
+        {/* Lower Dial Deck: 3 Vivid Coloured Open Instrument Dials (ZERO grey box borders) */}
         <div
-          className={`flex-1 act4-dial-deck border-b ${borderClass}`}
+          className="act4-dial-deck gap-3 sm:gap-4"
           data-testid="act4-dial-deck"
         >
           {CONTENT.act4.dials.map((dial, idx) => {
@@ -633,198 +613,171 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
             return (
               <div
                 key={dial.id}
-                className={`flex flex-col justify-between border-b min-[600px]:border-b-0 min-[600px]:border-r last:border-b-0 last:border-r-0 ${borderClass}`}
+                className="flex flex-col items-center justify-center gap-1"
                 data-testid={`lawson-dial-${dial.id}`}
               >
-                {/* Dial Header Strip */}
-                <div
-                  className={`flex items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 border-b font-mono-lab text-[10.5px] sm:text-xs tracking-[0.07em] ${borderClass}`}
-                >
-                  <span className="flex items-center gap-1.5 font-bold">
-                    <span
-                      className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 arch-surface shrink-0"
-                      style={{ backgroundColor: activeDialAccent }}
-                    />
-                    {dial.symbol}
-                  </span>
+                {/* Crisp Vivid Coloured Dial Label */}
+                <div className="flex items-center gap-2 font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.08em]">
+                  <span
+                    className="inline-block w-2.5 h-2.5 arch-surface shrink-0"
+                    style={{ backgroundColor: activeDialAccent }}
+                  />
+                  <span style={{ color: activeDialAccent }}>{dial.symbol}</span>
                   <span>{dial.label}</span>
                 </div>
 
                 {/* Interactive Circular Precision SVG Gauge */}
-                <div className="flex-1 p-2 sm:p-4 flex items-center justify-center">
-                  <svg
+                <svg
+                  ref={(el) => {
+                    dialSvgRefs.current[idx] = el;
+                  }}
+                  viewBox="0 0 300 300"
+                  style={{ width: 'min(100%, 205px, 27svh)', height: 'auto' }}
+                  className="cursor-crosshair active:cursor-grabbing select-none touch-none"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label={`${dial.label} (${dial.symbol}) dial`}
+                  aria-valuemin={cfg.min}
+                  aria-valuemax={cfg.max}
+                  aria-valuenow={cfg.defaultVal}
+                  data-testid={`lawson-slider-${dial.id}`}
+                  data-interactive="true"
+                  onPointerDown={(e) => handleDialPointerDown(idx, e)}
+                  onPointerMove={(e) => handleDialPointerMove(idx, e)}
+                  onPointerUp={(e) => handleDialPointerUp(idx, e)}
+                  onPointerCancel={(e) => handleDialPointerUp(idx, e)}
+                  onWheel={(e) => handleDialWheel(idx, e)}
+                  onKeyDown={(e) => handleDialKeyDown(idx, e)}
+                >
+                  <g
                     ref={(el) => {
-                      dialSvgRefs.current[idx] = el;
+                      dialCrosshairRefs.current[idx] = el;
                     }}
-                    viewBox="0 0 300 300"
-                    style={{ width: 'min(100%, 240px, 34svh)', height: 'auto' }}
-                    className="cursor-crosshair active:cursor-grabbing select-none touch-none"
-                    role="slider"
-                    tabIndex={0}
-                    aria-label={`${dial.label} (${dial.symbol}) dial`}
-                    aria-valuemin={cfg.min}
-                    aria-valuemax={cfg.max}
-                    aria-valuenow={cfg.defaultVal}
-                    data-testid={`lawson-slider-${dial.id}`}
-                    data-interactive="true"
-                    onPointerDown={(e) => handleDialPointerDown(idx, e)}
-                    onPointerMove={(e) => handleDialPointerMove(idx, e)}
-                    onPointerUp={(e) => handleDialPointerUp(idx, e)}
-                    onPointerCancel={(e) => handleDialPointerUp(idx, e)}
-                    onWheel={(e) => handleDialWheel(idx, e)}
-                    onKeyDown={(e) => handleDialKeyDown(idx, e)}
                   >
-                    {/* Tightening Geometric Plasma Resonance Crosshair Arcs */}
-                    <g
-                      ref={(el) => {
-                        dialCrosshairRefs.current[idx] = el;
-                      }}
-                    >
-                      <path
-                        d="M 150 6 A 144 144 0 0 1 206 17"
-                        fill="none"
-                        stroke={activeDialAccent}
-                        strokeWidth="1.5"
-                        strokeOpacity={isIgnited ? 0.85 : 0.45}
-                      />
-                      <path
-                        d="M 294 150 A 144 144 0 0 1 283 206"
-                        fill="none"
-                        stroke={activeDialAccent}
-                        strokeWidth="1.5"
-                        strokeOpacity={isIgnited ? 0.85 : 0.45}
-                      />
-                      <path
-                        d="M 150 294 A 144 144 0 0 1 94 283"
-                        fill="none"
-                        stroke={activeDialAccent}
-                        strokeWidth="1.5"
-                        strokeOpacity={isIgnited ? 0.85 : 0.45}
-                      />
-                      <path
-                        d="M 6 150 A 144 144 0 0 1 17 94"
-                        fill="none"
-                        stroke={activeDialAccent}
-                        strokeWidth="1.5"
-                        strokeOpacity={isIgnited ? 0.85 : 0.45}
-                      />
-                    </g>
-
-                    {/* Outer Calibration Bezel */}
-                    <circle
-                      cx="150"
-                      cy="150"
-                      r="138"
-                      fill="none"
-                      stroke={inkHex}
-                      strokeWidth="1"
-                    />
-
-                    {/* 60 Radial Degree Tick Marks (6° Magnetic Detents) */}
-                    {ticks.map((t) => (
-                      <line
-                        key={t.index}
-                        x1={t.x1}
-                        y1={t.y1}
-                        x2={t.x2}
-                        y2={t.y2}
-                        stroke={inkHex}
-                        strokeWidth={t.isMajor ? 1.5 : 0.85}
-                        strokeOpacity={t.isMajor ? 0.9 : 0.35}
-                      />
-                    ))}
-
-                    {/* Passive Track Ring */}
-                    <circle
-                      cx="150"
-                      cy="150"
-                      r="108"
-                      fill="none"
-                      stroke={inkHex}
-                      strokeOpacity="0.16"
-                      strokeWidth="4"
-                    />
-
-                    {/* Colored Active Arc Indicator */}
                     <path
-                      ref={(el) => {
-                        dialArcRefs.current[idx] = el;
-                      }}
-                      d={activeArc}
+                      d="M 150 6 A 144 144 0 0 1 206 17"
                       fill="none"
                       stroke={activeDialAccent}
-                      strokeWidth="5.5"
-                      strokeLinecap="butt"
+                      strokeWidth="2.5"
                     />
-
-                    {/* Inner Readout Aperture */}
-                    <circle
-                      cx="150"
-                      cy="150"
-                      r="68"
-                      fill={paperHex}
-                      stroke={inkHex}
-                      strokeWidth="1"
+                    <path
+                      d="M 294 150 A 144 144 0 0 1 283 206"
+                      fill="none"
+                      stroke={activeDialAccent}
+                      strokeWidth="2.5"
                     />
+                    <path
+                      d="M 150 294 A 144 144 0 0 1 94 283"
+                      fill="none"
+                      stroke={activeDialAccent}
+                      strokeWidth="2.5"
+                    />
+                    <path
+                      d="M 6 150 A 144 144 0 0 1 17 94"
+                      fill="none"
+                      stroke={activeDialAccent}
+                      strokeWidth="2.5"
+                    />
+                  </g>
 
-                    {/* Hairline Mechanical Pointer Needle */}
+                  {ticks.map((t) => (
                     <line
-                      ref={(el) => {
-                        dialNeedleRefs.current[idx] = el;
-                      }}
-                      x1={needleBase.x}
-                      y1={needleBase.y}
-                      x2={needleTip.x}
-                      y2={needleTip.y}
-                      stroke={inkHex}
-                      strokeWidth="2.2"
+                      key={t.index}
+                      x1={t.x1}
+                      y1={t.y1}
+                      x2={t.x2}
+                      y2={t.y2}
+                      stroke={t.isMajor ? activeDialAccent : inkHex}
+                      strokeWidth={t.isMajor ? 2 : 1}
+                      strokeOpacity={t.isMajor ? 0.95 : 0.35}
                     />
-                    <circle
-                      ref={(el) => {
-                        dialTipRefs.current[idx] = el;
-                      }}
-                      cx={needleTip.x}
-                      cy={needleTip.y}
-                      r="3.5"
-                      fill={activeDialAccent}
-                    />
+                  ))}
 
-                    {/* Large Tabular JetBrains Mono Center Readout */}
-                    <text
-                      ref={(el) => {
-                        dialValueRefs.current[idx] = el;
-                      }}
-                      x="150"
-                      y="146"
-                      textAnchor="middle"
-                      fill={isIgnited ? activeDialAccent : inkHex}
-                      fontSize={idx === 0 ? '16' : '18'}
-                      fontWeight="700"
-                      className="font-mono-lab"
-                    >
-                      {formatDialValue(idx, cfg.defaultVal)}
-                    </text>
-                    <text
-                      x="150"
-                      y="169"
-                      textAnchor="middle"
-                      fill={inkHex}
-                      fillOpacity="0.72"
-                      fontSize="12"
-                      letterSpacing="1.2"
-                      className="font-mono-lab"
-                    >
-                      {dial.unit}
-                    </text>
-                  </svg>
-                </div>
+                  <circle
+                    cx="150"
+                    cy="150"
+                    r="108"
+                    fill="none"
+                    stroke={activeDialAccent}
+                    strokeOpacity="0.22"
+                    strokeWidth="5"
+                  />
+
+                  <path
+                    ref={(el) => {
+                      dialArcRefs.current[idx] = el;
+                    }}
+                    d={activeArc}
+                    fill="none"
+                    stroke={activeDialAccent}
+                    strokeWidth="7"
+                    strokeLinecap="butt"
+                  />
+
+                  <circle
+                    cx="150"
+                    cy="150"
+                    r="68"
+                    fill={paperHex}
+                    stroke={activeDialAccent}
+                    strokeWidth="2"
+                  />
+
+                  <line
+                    ref={(el) => {
+                      dialNeedleRefs.current[idx] = el;
+                    }}
+                    x1={needleBase.x}
+                    y1={needleBase.y}
+                    x2={needleTip.x}
+                    y2={needleTip.y}
+                    stroke={inkHex}
+                    strokeWidth="2.6"
+                  />
+                  <circle
+                    ref={(el) => {
+                      dialTipRefs.current[idx] = el;
+                    }}
+                    cx={needleTip.x}
+                    cy={needleTip.y}
+                    r="4.5"
+                    fill={activeDialAccent}
+                  />
+
+                  <text
+                    ref={(el) => {
+                      dialValueRefs.current[idx] = el;
+                    }}
+                    x="150"
+                    y="146"
+                    textAnchor="middle"
+                    fill={isIgnited ? activeDialAccent : inkHex}
+                    fontSize={idx === 0 ? '16' : '19'}
+                    fontWeight="700"
+                    className="font-mono-lab"
+                  >
+                    {formatDialValue(idx, cfg.defaultVal)}
+                  </text>
+                  <text
+                    x="150"
+                    y="170"
+                    textAnchor="middle"
+                    fill={activeDialAccent}
+                    fontSize="12"
+                    fontWeight="700"
+                    letterSpacing="1.2"
+                    className="font-mono-lab"
+                  >
+                    {dial.unit}
+                  </text>
+                </svg>
               </div>
             );
           })}
         </div>
 
-        {/* Bottom Full-Width Segmented Spectral Bar + Live Phase-Locked Burn Waveform + Q Readout */}
-        <div className="px-4 sm:px-6 md:px-7 py-2.5 sm:py-3.5 flex flex-col gap-2">
+        {/* Bottom Row: Vibrant 24-Segment Q Breakeven Bar + Live Burning Waveform */}
+        <div className="flex flex-col gap-2 pt-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
             <div
               className="flex-1 grid grid-cols-12 sm:grid-cols-24 gap-1"
@@ -837,16 +790,19 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                   ref={(el) => {
                     segmentRefs.current[idx] = el;
                   }}
-                  className={`block h-4 sm:h-5 border arch-surface ${borderClass}`}
-                  style={{ backgroundColor: 'transparent' }}
+                  className="block h-4 sm:h-5 border-2 arch-surface"
+                  style={{
+                    backgroundColor: 'transparent',
+                    borderColor: getSpectralSegmentColor(idx, SEGMENT_COUNT),
+                  }}
                 />
               ))}
             </div>
 
             <div
-              className={`font-mono-lab text-[10.5px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0 border px-3 py-1.5 arch-surface ${
+              className={`font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0 border-2 px-3 py-1.5 arch-surface ${
                 isIgnited
-                  ? 'border-[#FFB800] text-[#FFB800]'
+                  ? 'border-[#FFB800] bg-[#FFB800] text-[#111114]'
                   : 'border-[#111114] text-[#111114]'
               }`}
               data-testid="q-gain-readout"
@@ -855,10 +811,9 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
             </div>
           </div>
 
-          {/* Live 60fps Phase-Locked Fusion Burn Waveform (Reveals on Q >= 1.00 Burning Equilibrium) */}
           {isIgnited && (
             <div
-              className="w-full h-7 sm:h-8 border border-[#F6F3EB]/40 arch-surface px-2 flex items-center"
+              className="w-full h-8 border-2 border-[#FFB800] arch-surface px-2 flex items-center"
               data-testid="fusion-burn-waveform"
               aria-label="Live phase-locked self-sustaining fusion burn standing waveform"
             >
@@ -867,21 +822,12 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                 preserveAspectRatio="none"
                 className="w-full h-full block"
               >
-                <line
-                  x1="0"
-                  y1="15"
-                  x2="640"
-                  y2="15"
-                  stroke="#F6F3EB"
-                  strokeOpacity="0.2"
-                  strokeWidth="1"
-                />
                 <path
                   ref={burnWaveHarmonicRef}
                   d="M0,15 L640,15"
                   fill="none"
                   stroke="#00D8FF"
-                  strokeWidth="1.5"
+                  strokeWidth="1.8"
                   vectorEffect="non-scaling-stroke"
                 />
                 <path
@@ -889,7 +835,7 @@ export const Act4Ignition: React.FC<Act4IgnitionProps> = ({ onIgnitedChange }) =
                   d="M0,15 L640,15"
                   fill="none"
                   stroke="#FFB800"
-                  strokeWidth="2"
+                  strokeWidth="2.4"
                   vectorEffect="non-scaling-stroke"
                 />
               </svg>

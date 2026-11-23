@@ -7,13 +7,13 @@ import { spectralAudio } from '../engine/spectralAudio';
 import { stepSpring, type SpringState } from '../physics/motionMath';
 import {
   ACT2_TIMING,
-  ATOMIC_EMISSION_PEAKS,
   buildOscilloscopeCurvePath,
   computeAct2ScrollState,
   computeCenterOutCharPose,
   generateFraunhoferSpectrometer,
 } from '../physics/spectroscopyMath';
 import { KineticText } from './KineticText';
+import { Act2Lithium3D, type Act2VisualState } from './three/Act2Lithium3D';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,14 +23,15 @@ export interface Act2LithiumProps {
 }
 
 /**
- * ACT 02 — DROP THE LITHIUM (16,000 FPS Optical Shockwave Chamber)
- * Pinned scroll-scrubbed optical spectroscopy installation:
+ * ACT 02 — DROP THE LITHIUM (16,000 FPS Optical Shockwave Chamber + 3D Lithium Impact)
+ * Brutally decluttered 3-row CSS Grid spanning 100svh:
  * - 4 full-bleed stacked spectral surfaces (#FF1F71 -> #FF2A2A -> #00E676 -> #00D8FF)
- * - GPU-composited multi-ring radial clip-path shockwave wipes from live pellet impact
- * - Procedural 60fps HTML5 Canvas 2D optical interferometer standing-wave fringes
- * - Center-out 3D-hinge Roboto Flex eruption + 2 hollow streak-camera ghost trails
- * - Live 380nm–700nm Fraunhofer/Balmer spectrometer + oscilloscope intensity curve & caliper
- * Zero React useState inside rAF or ScrollTrigger.onUpdate.
+ * - GPU-composited radial clip-path shockwave wipes + crisp SVG shockfront rings
+ * - Sculptural 3D WebGL Lithium Crystal + Ionized Shards + Twisted Plasma Vortex + 3D Shockwave Rings
+ * - Row 1: Pure high-contrast live T+ 00.000 ms badge + 4 crisp wavelength tabs ONLY
+ * - Row 2 (1fr): Massive center-out 3D-hinge Roboto Flex headline + hollow streak-camera ghosts
+ * - Row 3: Clean live oscilloscope emission peak curve + Fraunhofer caliper
+ * Zero muted eyebrow text, zero 01/04 counter, zero metadata clutter, zero 2D grey canvas lines.
  */
 export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   activeStageIndex,
@@ -38,7 +39,6 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
 }) => {
   const rootRef = useRef<HTMLElement | null>(null);
   const stageRowRef = useRef<HTMLDivElement | null>(null);
-  const interferometerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollTriggerRef = useRef<ScrollTrigger | null>(null);
 
   // Stacked flat spectral color plates (layers 1..3 animate GPU clip-path circle wipes)
@@ -50,22 +50,26 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   const ghost1Refs = useRef<Array<HTMLDivElement | null>>([]);
   const ghost2Refs = useRef<Array<HTMLDivElement | null>>([]);
 
-  // Center drop spine, plasma wake, diamond pellet, and 2 concentric SVG shockfront rings
-  const pelletGroupRef = useRef<HTMLDivElement | null>(null);
-  const wakeRef = useRef<HTMLDivElement | null>(null);
+  // Concentric high-contrast SVG shockfront rings
   const shockSvgRef = useRef<SVGSVGElement | null>(null);
   const shockRingOuterRef = useRef<SVGCircleElement | null>(null);
   const shockRingInnerRef = useRef<SVGCircleElement | null>(null);
-  const shockLabelRef = useRef<SVGTextElement | null>(null);
 
-  // Direct-DOM live telemetry & spectrometer refs
+  // Direct-DOM live telemetry & bottom emission curve refs
   const timeReadoutRef = useRef<HTMLSpanElement | null>(null);
   const oscPathRef = useRef<SVGPathElement | null>(null);
   const caliperRef = useRef<HTMLDivElement | null>(null);
   const specActiveLabelRef = useRef<HTMLSpanElement | null>(null);
 
-  // Mutable 60fps progress & discrete stage ref (zero useState churn)
+  // Mutable 60fps progress, 3D visual state, & discrete stage ref (zero useState churn)
   const scrubProxyRef = useRef({ progress: 0 });
+  const visual3DRef = useRef<Act2VisualState>({
+    progress: 0,
+    stageIndex: 0,
+    pelletYPct: 12,
+    transitionEnergy: 0,
+    shockNonce: 0,
+  });
   const lastDiscreteStageRef = useRef(activeStageIndex);
   const onSelectStageRef = useRef(onSelectStage);
   onSelectStageRef.current = onSelectStage;
@@ -130,11 +134,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   // Dedicated 60fps Act 2 render loop (auto-paused offscreen via IntersectionObserver)
   useEffect(() => {
     const root = rootRef.current;
-    const canvas = interferometerCanvasRef.current;
-    if (!root || !canvas) return;
-
-    const ctx2d = canvas.getContext('2d');
-    if (!ctx2d) return;
+    if (!root) return;
 
     let isVisible = false;
     const observer = new IntersectionObserver(
@@ -147,38 +147,24 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
     );
     observer.observe(root);
 
-    let canvasW = 1;
-    let canvasH = 1;
-    let row2TopOffset = 120;
-    const resizeCanvas = () => {
+    let rootW = 1;
+    let rootH = 1;
+    let row2TopOffset = 90;
+    const measureBounds = () => {
       const rect = root.getBoundingClientRect();
+      rootW = Math.max(1, Math.round(rect.width));
+      rootH = Math.max(1, Math.round(rect.height));
       if (stageRowRef.current) {
         row2TopOffset = stageRowRef.current.getBoundingClientRect().top - rect.top;
       }
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const nextW = Math.max(1, Math.round(rect.width));
-      const nextH = Math.max(1, Math.round(rect.height));
-      if (nextW === canvasW && nextH === canvasH && canvas.width === Math.round(nextW * dpr)) {
-        return;
-      }
-      canvasW = nextW;
-      canvasH = nextH;
-      canvas.width = Math.round(canvasW * dpr);
-      canvas.height = Math.round(canvasH * dpr);
-      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    resizeCanvas();
-    const resizeObserver = new ResizeObserver(resizeCanvas);
+    measureBounds();
+    const resizeObserver = new ResizeObserver(measureBounds);
     resizeObserver.observe(root);
     if (stageRowRef.current) resizeObserver.observe(stageRowRef.current);
-    window.addEventListener('resize', resizeCanvas, { passive: true });
+    window.addEventListener('resize', measureBounds, { passive: true });
 
-    // Springs for magnetically gliding spectrometer caliper & smooth wavelength frequency shift
     const caliperNmSpring: SpringState = {
-      pos: CONTENT.act2.stages[0].nm,
-      vel: 0,
-    };
-    const freqNmSpring: SpringState = {
       pos: CONTENT.act2.stages[0].nm,
       vel: 0,
     };
@@ -188,7 +174,6 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
     let rafId = 0;
     let lastTs = performance.now();
 
-    // Dirty-check caches to avoid redundant DOM & variable-font rasterizer invalidation at rest
     const lastAppliedReveals = [-1, -1, -1, -1];
     const lastClipKeys = ['', '', '', ''];
     let lastGhostKey = '';
@@ -218,40 +203,36 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
       const activeStage: SpectralStage =
         CONTENT.act2.stages[state.activeStageIndex] ?? CONTENT.act2.stages[0];
 
-      // Notify parent ONLY on discrete stage threshold crossing (max 3x across entire scroll)
+      // Feed live physics directly into Act2Lithium3D mutable ref (zero React setState)
+      visual3DRef.current.progress = progress;
+      visual3DRef.current.stageIndex = state.activeStageIndex;
+      visual3DRef.current.pelletYPct = state.pelletYPct;
+      visual3DRef.current.transitionEnergy = state.transitionEnergy;
+
+      // Notify parent + launch 3D torus shockwave ring ONLY on discrete stage crossing
       if (state.activeStageIndex !== lastDiscreteStageRef.current) {
         lastDiscreteStageRef.current = state.activeStageIndex;
+        visual3DRef.current.shockNonce += 1;
         onSelectStageRef.current(state.activeStageIndex);
         spectralAudio.playIonizationChime(activeStage.nm);
       }
 
-      // 1. Live reactor microsecond clock (00.000 ms -> 12.400 ms)
+      // 1. Live reactor microsecond clock
       const timeText = `${state.timeMs.toFixed(3).padStart(6, '0')} ms`;
       if (timeReadoutRef.current && timeText !== lastTimeText) {
         lastTimeText = timeText;
         timeReadoutRef.current.textContent = timeText;
       }
 
-      // Exact CSS clip-path: circle(R%) reference length per CSS Shapes spec
-      const cssCircleRefLen = Math.hypot(canvasW, canvasH) / Math.SQRT2;
-      const impactX = canvasW * 0.5;
-      const impactY = (canvasH * state.pelletYPct) / 100;
+      const cssCircleRefLen = Math.hypot(rootW, rootH) / Math.SQRT2;
+      const impactX = rootW * 0.5;
+      const impactY = (rootH * state.pelletYPct) / 100;
 
-      // 2. Lithium pellet vertical drop + trailing segmented plasma wake
-      if (pelletGroupRef.current) {
-        pelletGroupRef.current.style.top = `${state.pelletYPct}%`;
-      }
-      if (wakeRef.current) {
-        const wakeHeightPct = Math.max(2, state.pelletYPct - 12);
-        wakeRef.current.style.top = '12%';
-        wakeRef.current.style.height = `${wakeHeightPct}%`;
-      }
-
-      // 3. Synchronized GPU radial clip-path wipes (pixel-locked across full bg plates & Row 2 stage)
+      // 2. Synchronized GPU radial clip-path wipes
       for (let i = 1; i <= 3; i++) {
         const rPct = state.layerClipRadiiPct[i];
         const rPx = (rPct / 100) * cssCircleRefLen;
-        const key = `${rPx.toFixed(1)}@${impactY.toFixed(1)}@${row2TopOffset.toFixed(1)}@${canvasW}`;
+        const key = `${rPx.toFixed(1)}@${impactY.toFixed(1)}@${row2TopOffset.toFixed(1)}@${rootW}`;
         if (key !== lastClipKeys[i]) {
           lastClipKeys[i] = key;
           const bgClip = `circle(${rPx.toFixed(1)}px at ${impactX.toFixed(1)}px ${impactY.toFixed(1)}px)`;
@@ -263,7 +244,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         }
       }
 
-      // Cross-fade outgoing stage content cleanly before incoming shockwave reaches the headline band
+      // Cross-fade outgoing stage content cleanly before incoming shockwave
       for (let i = 0; i < 3; i++) {
         const contentLayer = contentLayerRefs.current[i];
         if (!contentLayer) continue;
@@ -281,12 +262,11 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         }
       }
 
-      // 4. Two concentric high-contrast SVG shockfront rings riding pixel-perfectly on the wipe seam
+      // 3. Concentric high-contrast SVG shockfront rings riding on wipe seam
       if (
         shockSvgRef.current &&
         shockRingOuterRef.current &&
-        shockRingInnerRef.current &&
-        shockLabelRef.current
+        shockRingInnerRef.current
       ) {
         if (state.shockfront.active) {
           const rOuter = (state.shockfront.radiusPct / 100) * cssCircleRefLen;
@@ -302,25 +282,12 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
           shockRingInnerRef.current.setAttribute('cx', impactX.toFixed(1));
           shockRingInnerRef.current.setAttribute('cy', impactY.toFixed(1));
           shockRingInnerRef.current.setAttribute('r', rInner.toFixed(1));
-
-          // Anchor radius readout cleanly along upper-right 35deg tangent inside viewport bounds
-          const labelX = Math.max(
-            24,
-            Math.min(canvasW - 116, impactX + rInner * 0.78 + 10)
-          );
-          const labelY = Math.max(
-            110,
-            Math.min(canvasH - 180, impactY - rInner * 0.35)
-          );
-          shockLabelRef.current.setAttribute('x', labelX.toFixed(1));
-          shockLabelRef.current.setAttribute('y', labelY.toFixed(1));
-          shockLabelRef.current.textContent = `R: ${state.shockfront.radiusMm.toFixed(1)}mm`;
         } else {
           shockSvgRef.current.style.opacity = '0';
         }
       }
 
-      // 5. Center-out 3D-hinge variable typography + streak-camera hollow ghost trails (dirty-checked!)
+      // 4. Center-out 3D-hinge variable typography + streak-camera ghost trails
       const rawScrollImpulse =
         progressDelta * 950 + motionEngine.smoothVelocity * 0.55;
       const shockBoost =
@@ -388,10 +355,8 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         }
       }
 
-      // 6. Live Fraunhofer / Balmer Oscilloscope Curve + Magnetic Optical Caliper
+      // 5. Live Bottom Emission Peak Curve + Magnetic Caliper
       stepSpring(caliperNmSpring, activeStage.nm, 0.14, 0.74, dtFactor);
-      stepSpring(freqNmSpring, activeStage.nm, 0.1, 0.8, dtFactor);
-
       const clampedCaliperNm = Math.max(minNm, Math.min(maxNm, caliperNmSpring.pos));
       const caliperPct = ((clampedCaliperNm - minNm) / nmSpan) * 100;
 
@@ -413,71 +378,13 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         });
         oscPathRef.current.setAttribute('d', d);
       }
-
-      // 7. Procedural 60fps Optical Interferometer Standing-Wave Fringes (Strictly Behind Type)
-      ctx2d.clearRect(0, 0, canvasW, canvasH);
-      const isLightInk = activeStage.ink === '#F6F3EB';
-      const inkRgb = isLightInk ? '246, 243, 235' : '17, 17, 20';
-
-      // Spatial frequency shifts mathematically proportional to 1 / wavelength
-      const waveK = (656.28 / Math.max(400, freqNmSpring.pos)) * 0.024;
-      const fringeCount = 26;
-      const shockR = state.shockfront.active
-        ? (state.shockfront.radiusPct / 100) * cssCircleRefLen
-        : -999;
-
-      ctx2d.lineWidth = 0.85;
-      for (let f = 0; f < fringeCount; f++) {
-        const normY = (f + 0.5) / fringeCount;
-        const baseY = normY * canvasH;
-        const alpha = 0.12 + 0.09 * Math.sin(normY * Math.PI);
-        ctx2d.strokeStyle = `rgba(${inkRgb}, ${alpha.toFixed(3)})`;
-        ctx2d.beginPath();
-
-        const stepX = 22;
-        for (let x = 0; x <= canvasW + stepX; x += stepX) {
-          const standing =
-            Math.sin(x * waveK + timeSec * 1.15 + f * 0.45) *
-            Math.cos(timeSec * 0.7 - f * 0.25) *
-            (3.4 + state.transitionEnergy * 5.8);
-
-          // Crisp radial optical refraction pulse as shockwave sweeps past
-          let refraction = 0;
-          if (state.shockfront.active) {
-            const dist = Math.hypot(x - impactX, baseY - impactY);
-            const ringDelta = dist - shockR;
-            if (Math.abs(ringDelta) < 110) {
-              const env = Math.exp(-(ringDelta * ringDelta) / (2 * 34 * 34));
-              refraction =
-                Math.sin(ringDelta * 0.14) * env * 14 * state.shockfront.strength;
-            }
-          }
-
-          const y = baseY + standing + refraction;
-          if (x === 0) ctx2d.moveTo(x, y);
-          else ctx2d.lineTo(x, y);
-        }
-        ctx2d.stroke();
-      }
-
-      // Subtle concentric radial optical refraction rings on canvas during impact
-      if (state.shockfront.active && state.shockfront.strength > 0.04) {
-        ctx2d.strokeStyle = `rgba(${inkRgb}, ${(0.22 * state.shockfront.strength).toFixed(3)})`;
-        ctx2d.lineWidth = 1;
-        for (let ring = 1; ring <= 3; ring++) {
-          const rr = Math.max(4, shockR - ring * 26);
-          ctx2d.beginPath();
-          ctx2d.arc(impactX, impactY, rr, 0, Math.PI * 2);
-          ctx2d.stroke();
-        }
-      }
     };
 
     rafId = window.requestAnimationFrame(tick);
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', measureBounds);
       resizeObserver.disconnect();
       observer.disconnect();
     };
@@ -498,9 +405,6 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
   const activeStage = CONTENT.act2.stages[activeStageIndex] ?? CONTENT.act2.stages[0];
   const isLightInk = activeStage.ink === '#F6F3EB';
   const chromeTextColor = activeStage.ink;
-  const chromeBorderColor = isLightInk
-    ? 'rgba(246, 243, 235, 0.5)'
-    : 'rgba(17, 17, 20, 0.42)';
 
   return (
     <section
@@ -509,7 +413,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
       data-act="2"
       data-act-ink={isLightInk ? 'light' : 'dark'}
       data-stage-id={activeStage.id}
-      className="relative h-[100svh] min-h-[100svh] w-full max-w-full overflow-hidden border-b border-[#111114] box-border pt-[3.25rem] pb-[2.5rem] grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto]"
+      className="relative h-[100svh] min-h-[100svh] w-full max-w-full overflow-hidden box-border pt-[3.25rem] pb-[1.5rem] grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto]"
       style={{ backgroundColor: CONTENT.act2.stages[0].bg }}
     >
       {/* 1. STACKED 4 FULL-BLEED FLAT SPECTRAL COLOR PLATES (z: 1..4) */}
@@ -529,120 +433,57 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         />
       ))}
 
-      {/* 2. PROCEDURAL 60FPS OPTICAL INTERFEROMETER CANVAS (z: 4 — Strictly Behind Spine & Type) */}
-      <canvas
-        ref={interferometerCanvasRef}
-        className="pointer-events-none absolute inset-0 z-[4] w-full h-full"
-        aria-hidden="true"
-        data-testid="act2-interferometer-canvas"
+      {/* 2. SCULPTURAL 3D LITHIUM CRYSTAL IMPACT & PLASMA VORTEX (z: 6 — Vividly behind Row 2 Type) */}
+      <Act2Lithium3D
+        stateRef={visual3DRef}
+        className="absolute inset-0 z-[6] w-full h-full"
       />
 
-      {/* 3. CENTER 1px LITHIUM-DROP SPINE + WAKE + DIAMOND PELLET + SVG SHOCKFRONT RINGS (z: 5 — Behind Row 2) */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[5]"
+      {/* 3. HIGH-CONTRAST SVG SHOCKFRONT RINGS RIDING WIPE SEAM (z: 7) */}
+      <svg
+        ref={shockSvgRef}
+        className="pointer-events-none absolute inset-0 z-[7] w-full h-full opacity-0"
+        data-testid="act2-shockfront-svg"
         aria-hidden="true"
       >
-        {/* Center vertical 1px spine */}
-        <div
-          className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px"
-          style={{ backgroundColor: chromeTextColor, opacity: 0.34 }}
+        <circle
+          ref={shockRingOuterRef}
+          cx="50%"
+          cy="50%"
+          r="0"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.5"
         />
+        <circle
+          ref={shockRingInnerRef}
+          cx="50%"
+          cy="50%"
+          r="0"
+          fill="none"
+          stroke={chromeTextColor}
+          strokeWidth="1.5"
+          strokeDasharray="6 6"
+        />
+      </svg>
 
-        {/* Flat Segmented Plasma Wake Trail (zero gradients) */}
-        <div
-          ref={wakeRef}
-          className="absolute left-1/2 -translate-x-1/2 w-[3px] flex flex-col justify-between overflow-hidden"
-          style={{
-            top: '12%',
-            height: '2%',
-          }}
-        >
-          <span className="block w-full h-[22%] opacity-15" style={{ backgroundColor: chromeTextColor }} />
-          <span className="block w-full h-[24%] opacity-30" style={{ backgroundColor: chromeTextColor }} />
-          <span className="block w-full h-[26%] opacity-50" style={{ backgroundColor: chromeTextColor }} />
-          <span className="block w-full h-[24%] opacity-75" style={{ backgroundColor: chromeTextColor }} />
-        </div>
-
-        {/* Dropping Geometric Diamond Lithium Pellet */}
-        <div
-          ref={pelletGroupRef}
-          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ top: '12%' }}
-          data-testid="lithium-pellet"
-        >
-          <svg width="26" height="26" viewBox="0 0 26 26">
-            <polygon
-              points="13,2 24,13 13,24 2,13"
-              fill={chromeTextColor}
-              stroke={activeStage.bg}
-              strokeWidth="1.5"
-            />
-            <polygon points="13,7.5 18.5,13 13,18.5 7.5,13" fill={activeStage.bg} />
-          </svg>
-        </div>
-
-        {/* 2 Concentric High-Contrast SVG Shockfront Rings + Live Radius Readout */}
-        <svg
-          ref={shockSvgRef}
-          className="absolute inset-0 w-full h-full opacity-0"
-          data-testid="act2-shockfront-svg"
-        >
-          <circle
-            ref={shockRingOuterRef}
-            cx="50%"
-            cy="50%"
-            r="0"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="2"
-          />
-          <circle
-            ref={shockRingInnerRef}
-            cx="50%"
-            cy="50%"
-            r="0"
-            fill="none"
-            stroke={chromeTextColor}
-            strokeWidth="1.25"
-            strokeDasharray="6 6"
-          />
-          <text
-            ref={shockLabelRef}
-            x="50%"
-            y="50%"
-            fill={chromeTextColor}
-            fontSize="11"
-            className="font-mono-lab"
-          >
-            R: 0.0mm
-          </text>
-        </svg>
-      </div>
-
-      {/* ROW 1: COMPACT 2-LINE HEADER (max ~72px total — Eyebrow + Clock + 4 Tabs + Inline Stage Metadata) */}
+      {/* ROW 1: PURE HIGH-CONTRAST T+ CLOCK + 4 WAVELENGTH TABS ONLY (ZERO GREY CLUTTER) */}
       <div
-        className="relative z-[30] w-full min-w-0 px-4 sm:px-6 md:px-10"
+        className="relative z-[30] w-full min-w-0 px-4 sm:px-6 md:px-10 pt-1"
         style={{ color: chromeTextColor }}
         data-testid="act2-header-row"
       >
-        {/* Line 1: Eyebrow + Microsecond Clock + 4 Compact Wavelength Tabs */}
-        <div
-          className="w-full min-w-0 border-t py-1.5 flex flex-wrap items-center justify-between gap-x-2 sm:gap-x-3 gap-y-1"
-          style={{ borderColor: chromeBorderColor }}
-        >
-          <div className="flex-1 flex items-center justify-between sm:justify-start gap-2 sm:gap-3 font-mono-lab text-[9.5px] sm:text-[11px] tracking-[0.07em] min-w-0">
-            <span className="truncate min-w-0">{CONTENT.act2.eyebrow}</span>
-            <span
-              className="px-1.5 py-0.5 border arch-surface font-bold whitespace-nowrap shrink-0"
-              style={{ borderColor: chromeTextColor }}
-              data-testid="act2-time-readout"
-            >
-              T+ <span ref={timeReadoutRef}>00.000 ms</span>
-            </span>
-          </div>
+        <div className="w-full min-w-0 flex flex-wrap items-center justify-between gap-2">
+          <span
+            className="px-2 py-1 border-2 arch-surface font-mono-lab text-[10px] sm:text-xs font-bold tracking-[0.07em] whitespace-nowrap shrink-0"
+            style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
+            data-testid="act2-time-readout"
+          >
+            T+ <span ref={timeReadoutRef}>00.000 ms</span>
+          </span>
 
           <div
-            className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex items-stretch border arch-surface shrink-0"
+            className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex items-stretch border-2 arch-surface shrink-0 mr-0 sm:mr-6"
             style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
             role="group"
             aria-label="Spectral emission stage selector"
@@ -655,7 +496,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => handleTabJump(idx)}
-                  className="font-mono-lab text-[9px] sm:text-[11px] font-medium tracking-[0.02em] sm:tracking-[0.04em] px-1 sm:px-3 min-h-[26px] sm:min-h-[28px] arch-surface whitespace-nowrap text-center cursor-pointer border-r last:border-r-0"
+                  className="font-mono-lab text-[9.5px] sm:text-[11px] font-bold tracking-[0.03em] px-1.5 sm:px-3 min-h-[28px] sm:min-h-[30px] arch-surface whitespace-nowrap text-center cursor-pointer border-r-2 last:border-r-0"
                   style={{
                     borderColor: chromeTextColor,
                     backgroundColor: isActive ? chromeTextColor : 'transparent',
@@ -668,29 +509,9 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
             })}
           </div>
         </div>
-
-        {/* Line 2: Single-Line Inline Active Stage Spectroscopy Metadata */}
-        <div
-          className="w-full border-t border-b py-1 flex items-center justify-between gap-2 font-mono-lab text-[10px] sm:text-xs tracking-[0.07em] whitespace-nowrap overflow-hidden"
-          style={{ borderColor: chromeBorderColor }}
-          data-testid="act2-stage-meta-bar"
-        >
-          <span className="font-bold truncate">
-            {activeStage.code}
-            {'  //  '}
-            {activeStage.wavelength}
-            {'  //  '}
-            {activeStage.transition}
-            {'  //  '}
-            {activeStage.energy}
-          </span>
-          <span className="hidden sm:inline opacity-80 shrink-0">
-            0{activeStageIndex + 1} / 04
-          </span>
-        </div>
       </div>
 
-      {/* ROW 2 (1fr): DEDICATED OPEN TYPOGRAPHY STAGE — ZERO POSSIBLE OVERLAP WITH ROW 1 OR ROW 3 */}
+      {/* ROW 2 (1fr): DEDICATED OPEN TYPOGRAPHY STAGE OVER 3D LITHIUM VORTEX */}
       <div
         ref={stageRowRef}
         className="relative z-[20] min-h-0 min-w-0 w-full overflow-visible"
@@ -710,9 +531,8 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
               clipPath: idx === 0 ? undefined : 'circle(0px at 50% 0px)',
             }}
           >
-            {/* Centered Streak-Camera Kinetic Headline Container */}
             <div className="relative w-full max-w-full stage-hinge-perspective text-center">
-              {/* Hollow Streak-Camera Ghost Trail 2 (farthest behind) */}
+              {/* Hollow Streak-Camera Ghost Trail 2 */}
               <div
                 ref={(el) => {
                   ghost2Refs.current[idx] = el;
@@ -723,7 +543,7 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
                 {stage.title}
               </div>
 
-              {/* Hollow Streak-Camera Ghost Trail 1 (closer) */}
+              {/* Hollow Streak-Camera Ghost Trail 1 */}
               <div
                 ref={(el) => {
                   ghost1Refs.current[idx] = el;
@@ -747,18 +567,18 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
         ))}
       </div>
 
-      {/* ROW 3: SLEEK BOTTOM SPECTROMETER (fixed clamp(68px, 13svh, 110px), z: 10, strictly separated) */}
+      {/* ROW 3: CLEAN LIVE EMISSION PEAK CURVE & CALIPER */}
       <div
-        className="relative z-[10] w-full min-w-0 px-4 sm:px-6 md:px-10"
+        className="relative z-[10] w-full min-w-0 px-4 sm:px-6 md:px-10 pr-7 sm:pr-10 md:pr-12"
         style={{ color: chromeTextColor }}
       >
         <div
-          className="h-[clamp(68px,13svh,110px)] border arch-surface px-3 sm:px-4 py-1.5 flex flex-col justify-between"
+          className="h-[clamp(62px,11.5svh,94px)] border-2 arch-surface px-3 sm:px-4 py-1.5 flex flex-col justify-between"
           style={{ borderColor: chromeTextColor, backgroundColor: activeStage.bg }}
           data-testid="emission-spectrometer"
         >
           {/* Live SVG Oscilloscope Spectral Intensity Curve */}
-          <div className="relative flex-1 min-h-[20px] w-full border-b" style={{ borderColor: chromeBorderColor }}>
+          <div className="relative flex-1 min-h-[22px] w-full">
             <svg
               viewBox="0 0 1000 54"
               preserveAspectRatio="none"
@@ -766,62 +586,41 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
               aria-hidden="true"
               data-testid="act2-oscilloscope-svg"
             >
-              <line
-                x1="0"
-                y1="50"
-                x2="1000"
-                y2="50"
-                stroke={chromeTextColor}
-                strokeOpacity="0.25"
-                strokeWidth="1"
-              />
               <path
                 ref={oscPathRef}
                 d={buildOscilloscopeCurvePath({ activeNm: activeStage.nm })}
                 fill="none"
                 stroke={chromeTextColor}
-                strokeWidth="1.75"
+                strokeWidth="2.2"
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
           </div>
 
-          {/* 380nm–700nm Calibrated Fraunhofer/Balmer Barcode + Magnetic Optical Caliper */}
-          <div className="relative flex-1 min-h-[20px] w-full">
-            {fraunhoferTicks.map((tick) => {
-              const isSelectedEmission = tick.stageId === activeStage.id;
-              return (
-                <div
-                  key={`${tick.nm}-${tick.isEmission ? 'e' : 'g'}`}
-                  className="absolute bottom-0 top-0 -translate-x-1/2 flex flex-col items-center justify-end"
-                  style={{ left: `${tick.positionPct}%` }}
-                >
-                  <span
-                    className="block arch-surface"
-                    style={{
-                      width: isSelectedEmission ? '3px' : tick.isEmission ? '2px' : '1px',
-                      height: isSelectedEmission
-                        ? '100%'
-                        : tick.isEmission
-                          ? '82%'
-                          : tick.isMajorScale
-                            ? '46%'
-                            : '26%',
-                      backgroundColor: chromeTextColor,
-                      opacity: isSelectedEmission
-                        ? 1
-                        : tick.isEmission
-                          ? 0.72
-                          : tick.isMajorScale
-                            ? 0.34
-                            : 0.18,
-                    }}
-                  />
-                </div>
-              );
-            })}
+          {/* High-Contrast Emission Barcode + Sliding Caliper */}
+          <div className="relative h-3.5 w-full">
+            {fraunhoferTicks
+              .filter((t) => t.isEmission || t.isMajorScale)
+              .map((tick) => {
+                const isSelectedEmission = tick.stageId === activeStage.id;
+                return (
+                  <div
+                    key={`${tick.nm}-${tick.isEmission ? 'e' : 'g'}`}
+                    className="absolute bottom-0 top-0 -translate-x-1/2 flex flex-col items-center justify-end"
+                    style={{ left: `${tick.positionPct}%` }}
+                  >
+                    <span
+                      className="block arch-surface"
+                      style={{
+                        width: isSelectedEmission ? '3px' : tick.isEmission ? '2px' : '1px',
+                        height: isSelectedEmission ? '100%' : tick.isEmission ? '78%' : '45%',
+                        backgroundColor: chromeTextColor,
+                      }}
+                    />
+                  </div>
+                );
+              })}
 
-            {/* Precision Magnetically Sliding Optical Caliper Bracket */}
             <div
               ref={caliperRef}
               className="pointer-events-none absolute -top-0.5 bottom-0 w-3.5 -translate-x-1/2 border-x-2 border-t-2 arch-surface"
@@ -833,20 +632,10 @@ export const Act2Lithium: React.FC<Act2LithiumProps> = ({
             />
           </div>
 
-          {/* Atomic Peak Reference Labels & 380nm–700nm Bounds */}
-          <div className="pt-0.5 flex items-center justify-between gap-2 font-mono-lab text-[9.5px] sm:text-[11px] leading-none tracking-[0.06em] whitespace-nowrap">
+          {/* Crisp Bounds + Live Active Wavelength */}
+          <div className="pt-0.5 flex items-center justify-between gap-2 font-mono-lab text-[9.5px] sm:text-[11px] font-bold leading-none tracking-[0.06em] whitespace-nowrap">
             <span className="shrink-0">{CONTENT.act2.spectrometerBounds.minLabel}</span>
-            <div className="hidden lg:flex items-center gap-3 text-[9.5px] opacity-80 whitespace-nowrap">
-              {ATOMIC_EMISSION_PEAKS.map((peak) => (
-                <span
-                  key={peak.label}
-                  className={peak.stageId === activeStage.id ? 'font-bold opacity-100 underline underline-offset-2' : ''}
-                >
-                  {peak.label}
-                </span>
-              ))}
-            </div>
-            <span ref={specActiveLabelRef} className="font-bold whitespace-nowrap shrink-0">
+            <span ref={specActiveLabelRef} className="whitespace-nowrap shrink-0">
               {activeStage.wavelength}
             </span>
             <span className="shrink-0">{CONTENT.act2.spectrometerBounds.maxLabel}</span>

@@ -96,7 +96,6 @@ export default function App() {
   const baseMeta = CONTENT.chrome.actMeta[activeAct];
 
   let chromeInkMode: 'dark' | 'light' = baseMeta.ink;
-  let activeWavelength: string = baseMeta.wavelength;
   let activeSwatch: string = baseMeta.swatch;
   let reticleAccent = '#FF1F71';
 
@@ -104,7 +103,6 @@ export default function App() {
     reticleAccent = '#FF1F71';
   } else if (activeAct === '2') {
     chromeInkMode = act2Stage.ink === '#F6F3EB' ? 'light' : 'dark';
-    activeWavelength = act2Stage.tabLabel;
     activeSwatch = act2Stage.bg;
     reticleAccent = act2Stage.ink;
   } else if (activeAct === '3') {
@@ -112,7 +110,6 @@ export default function App() {
   } else if (activeAct === '4') {
     if (act4Ignited) {
       chromeInkMode = 'light';
-      activeWavelength = '0.01nm X-RAY';
       activeSwatch = '#FFB800';
       reticleAccent = '#FFB800';
     } else {
@@ -137,9 +134,7 @@ export default function App() {
 
       <SwissChrome
         inkMode={chromeInkMode}
-        activeAct={activeAct}
         activeStageIndex={activeStageIndex}
-        activeWavelength={activeWavelength}
         activeSwatch={activeSwatch}
         onReplayShutter={handleReplayShutter}
       />

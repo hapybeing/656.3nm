@@ -1,15 +1,14 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { CONTENT } from '../data/content';
 import { motionEngine } from '../engine/motionEngine';
 import {
   computeCharFieldTargets,
-  evaluateMhdRingPath,
-  precomputeFluxEquilibrium,
   stepSpring,
   type SpringState,
 } from '../physics/motionMath';
 import { KineticText } from './KineticText';
+import { Act1Toroid3D } from './three/Act1Toroid3D';
 
 export interface Act1HeroProps {
   revealNonce: number;
@@ -29,17 +28,17 @@ interface CharPhysicsNode {
 
 /**
  * ACT 01 — THE INVISIBLE CORE (Hero)
- * Preserves Pass 1's exact Swiss exhibition poster geometry while layering:
- * 1. Choreographed entrance overlapping Act 0's wipe
- * 2. High-contrast damped-spring variable typography (zero reflow, zero setState)
- * 3. Live 14-contour 80-vertex MHD parametric magnetic flux physics + Lorentz pointer field
+ * Brutally decluttered Swiss gallery composition on Ceramic Paper (#F6F3EB):
+ * - Monumental kinetic Bricolage Grotesque headline ("150 MILLION / DEGREES IS / INVISIBLE.")
+ *   with damped-spring variable typography (zero reflow, zero setState)
+ * - Huge sculptural 3D Optical Plasma Toroid (Act1Toroid3D: Miller D-shaped GLSL "Invisible Core"
+ *   Fresnel plasma wrapped inside 12 glossy metallic D-shaped magnetic coils)
+ * - Crisp SCROLL ↓ 656.28nm button
+ * Zero muted eyebrow text, zero bottom caption paragraph, zero faint grey gridlines.
  */
 export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const coreGroupRef = useRef<SVGGElement | null>(null);
-  const fluxPathRefs = useRef<Array<SVGPathElement | null>>([]);
-  const eyebrowRef = useRef<HTMLDivElement | null>(null);
+  const toroidWrapRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
   const scrollArrowRef = useRef<HTMLSpanElement | null>(null);
   const lineMaskRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -47,15 +46,7 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
 
   const entranceDoneRef = useRef(false);
   const charNodesRef = useRef<CharPhysicsNode[]>([]);
-  const svgDocBoundsRef = useRef({ left: 0, docTop: 0, width: 1, height: 1 });
   const measureSlotsRef = useRef<() => void>(() => {});
-
-  // Precompute 14-contour 80-vertex Miller D-shaped equilibrium + resting paths once
-  const fluxRings = useMemo(() => precomputeFluxEquilibrium({ samples: 80 }), []);
-  const initialPaths = useMemo(
-    () => fluxRings.map((ring) => evaluateMhdRingPath(ring, 0, 520, 450, 0).d),
-    [fluxRings]
-  );
 
   // Measure and lock natural character slot widths + cache document coordinates (zero reflow in rAF)
   useEffect(() => {
@@ -72,13 +63,11 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         (el): el is HTMLSpanElement => el !== null
       );
 
-      // Save and temporarily clear line-mask transforms so cached docY is exact resting position
       const savedInnerTransforms = inners.map((el) => el.style.transform);
       for (const el of inners) {
         el.style.transform = 'none';
       }
 
-      // Temporarily reset slot widths & inline transforms so we measure natural resting widths
       const savedCharStyles = charEls.map((el) => ({
         transform: el.style.transform,
         wght: el.style.getPropertyValue('--wght'),
@@ -101,7 +90,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       for (let i = 0; i < charEls.length; i++) {
         const el = charEls[i];
         const rect = el.getBoundingClientRect();
-        // Lock slot width cleanly to prevent any line-wrap or horizontal reflow jitter
         el.style.width = `${Math.ceil(rect.width)}px`;
 
         const prev = existing[i];
@@ -118,7 +106,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         });
       }
 
-      // Restore any in-flight entrance styles cleanly
       for (let i = 0; i < inners.length; i++) {
         inners[i].style.transform = savedInnerTransforms[i];
       }
@@ -133,16 +120,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       }
 
       charNodesRef.current = nextNodes;
-
-      if (svgRef.current) {
-        const svgRect = svgRef.current.getBoundingClientRect();
-        svgDocBoundsRef.current = {
-          left: svgRect.left,
-          docTop: svgRect.top + scrollY,
-          width: Math.max(1, svgRect.width),
-          height: Math.max(1, svgRect.height),
-        };
-      }
     };
 
     measureSlotsRef.current = measureSlots;
@@ -174,7 +151,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
     ).matches;
 
     if (revealNonce === 0 && !prefersReducedMotion) {
-      // Hold Act 1 poised behind Act 0 shutter until reveal signal fires
       entranceDoneRef.current = false;
       const masks = lineMaskRefs.current.filter(
         (el): el is HTMLSpanElement => el !== null
@@ -182,20 +158,14 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       const inners = lineInnerRefs.current.filter(
         (el): el is HTMLSpanElement => el !== null
       );
-      const paths = fluxPathRefs.current.filter(
-        (el): el is SVGPathElement => el !== null
-      );
       gsap.set(masks, { overflow: 'hidden' });
       gsap.set(inners, { yPercent: 115 });
-      gsap.set(paths, {
-        scale: 0.82,
-        opacity: 0,
-        transformOrigin: '562px 450px',
-      });
-      gsap.set([eyebrowRef.current, footerRef.current], {
-        opacity: 0,
-        y: 16,
-      });
+      if (toroidWrapRef.current) {
+        gsap.set(toroidWrapRef.current, { scale: 0.86, opacity: 0 });
+      }
+      if (footerRef.current) {
+        gsap.set(footerRef.current, { opacity: 0, y: 16 });
+      }
       return;
     }
 
@@ -215,9 +185,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         (el): el is HTMLSpanElement => el !== null
       );
       const chars = Array.from(section.querySelectorAll<HTMLElement>('.k-char'));
-      const paths = fluxPathRefs.current.filter(
-        (el): el is SVGPathElement => el !== null
-      );
 
       gsap.set(masks, { overflow: 'hidden' });
       gsap.set(inners, { yPercent: 115 });
@@ -227,7 +194,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         '--opsz': 96,
       } as gsap.TweenVars);
 
-      // Reset spring states to match entrance target smoothly at handoff
       for (const node of charNodesRef.current) {
         node.wght.pos = 800;
         node.wght.vel = 0;
@@ -245,14 +211,12 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
 
       const tl = gsap.timeline({
         onComplete: () => {
-          // Release mask overflow so -11px elastic spring lift never clips
           gsap.set(masks, { overflow: 'visible' });
           entranceDoneRef.current = true;
           measureSlotsRef.current();
         },
       });
 
-      // Headline lines rise out of mask while characters slam thin/compressed -> heavy/expanded
       tl.to(
         inners,
         {
@@ -276,42 +240,39 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         0
       );
 
-      // 14 nested D-shaped flux contours radiate outward from innermost core to outer shell
-      paths.forEach((pathEl, idx) => {
-        const targetOpacity = fluxRings[idx]?.baseOpacity ?? 0.5;
-        tl.fromTo(
-          pathEl,
-          { scale: 0.82, opacity: 0, transformOrigin: '562px 450px' },
+      if (toroidWrapRef.current) {
+        tl.to(
+          toroidWrapRef.current,
           {
             scale: 1,
-            opacity: targetOpacity,
-            duration: 0.88,
+            opacity: 1,
+            duration: 1.0,
             ease: 'expo.out',
           },
-          idx * 0.022
+          0.04
         );
-      });
+      }
 
-      // Eyebrow, bottom rule, caption, and scroll cue snap cleanly into place
-      tl.to(
-        [eyebrowRef.current, footerRef.current],
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.5,
-          stagger: 0.06,
-          ease: 'power4.out',
-        },
-        0.18
-      );
+      if (footerRef.current) {
+        tl.to(
+          footerRef.current,
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: 'power4.out',
+          },
+          0.18
+        );
+      }
     }, sectionRef);
 
     return () => {
       ctx.revert();
     };
-  }, [revealNonce, fluxRings]);
+  }, [revealNonce]);
 
-  // Shared Act 1 60fps rAF physics loop (auto-paused via IntersectionObserver when offscreen)
+  // Shared Act 1 60fps damped-spring variable typography loop (paused offscreen)
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
@@ -332,13 +293,8 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
     );
     observer.observe(section);
 
-    // Smooth springs for SVG pointer coordinates, pointer strength, idle wave, & core lag
-    const ptrSvgX: SpringState = { pos: 562, vel: 0 };
-    const ptrSvgY: SpringState = { pos: 450, vel: 0 };
     const ptrBlend: SpringState = { pos: 0, vel: 0 };
     const idleBlend: SpringState = { pos: 0, vel: 0 };
-    const coreLagX: SpringState = { pos: 0, vel: 0 };
-    const coreLagY: SpringState = { pos: 0, vel: 0 };
 
     let rafId = 0;
     let lastTs = performance.now();
@@ -360,7 +316,6 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       const rawPtrY = motionEngine.pointerY;
       const isPtrOnPage = motionEngine.pointerActive && rawPtrX >= 0 && rawPtrY >= 0;
 
-      // Subtle idle wave activates gently after 1.6s of pointer inactivity
       const idleElapsed = motionEngine.timeSec - motionEngine.lastInputTimeSec;
       const targetIdle = !isPtrOnPage || idleElapsed > 1.6 ? 1 : 0;
       const targetPtrStrength = isPtrOnPage ? 1 : 0;
@@ -371,60 +326,10 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       const pStrength = Math.max(0, Math.min(1, ptrBlend.pos));
       const iStrength = Math.max(0, Math.min(1, idleBlend.pos));
 
-      // 1. Live 14-Contour MHD Parametric Magnetic Flux Physics
-      const svgBounds = svgDocBoundsRef.current;
-      const svgViewTop = svgBounds.docTop - scrollY;
-      let targetSvgX = 562;
-      let targetSvgY = 450;
-
-      if (isPtrOnPage && svgBounds.width > 1 && svgBounds.height > 1) {
-        // Convert viewport pointer cleanly into SVG 900x900 viewBox space (preserveAspectRatio xMidYMid meet)
-        const scale = Math.min(svgBounds.width / 900, svgBounds.height / 900);
-        const renderedW = 900 * scale;
-        const renderedH = 900 * scale;
-        const offsetX = svgBounds.left + (svgBounds.width - renderedW) * 0.5;
-        const offsetY = svgViewTop + (svgBounds.height - renderedH) * 0.5;
-        targetSvgX = (rawPtrX - offsetX) / scale;
-        targetSvgY = (rawPtrY - offsetY) / scale;
-      }
-
-      stepSpring(ptrSvgX, targetSvgX, 0.14, 0.74, dtFactor);
-      stepSpring(ptrSvgY, targetSvgY, 0.14, 0.74, dtFactor);
-
-      for (let i = 0; i < fluxRings.length; i++) {
-        const pathEl = fluxPathRefs.current[i];
-        if (!pathEl) continue;
-        const { d, strokeWidth } = evaluateMhdRingPath(
-          fluxRings[i],
-          timeSec,
-          ptrSvgX.pos,
-          ptrSvgY.pos,
-          pStrength
-        );
-        pathEl.setAttribute('d', d);
-        pathEl.setAttribute('stroke-width', String(strokeWidth));
-      }
-
-      // Dynamic magnetic equilibrium lag on the central core crosshair (+)
-      if (coreGroupRef.current) {
-        const dxCore = (ptrSvgX.pos - 562) * 0.045 * pStrength;
-        const dyCore = (ptrSvgY.pos - 450) * 0.045 * pStrength;
-        const clampedDx = Math.max(-16, Math.min(16, dxCore));
-        const clampedDy = Math.max(-16, Math.min(16, dyCore));
-        stepSpring(coreLagX, clampedDx, 0.08, 0.8, dtFactor);
-        stepSpring(coreLagY, clampedDy, 0.08, 0.8, dtFactor);
-        coreGroupRef.current.setAttribute(
-          'transform',
-          `translate(${coreLagX.pos.toFixed(2)} ${coreLagY.pos.toFixed(2)})`
-        );
-      }
-
-      // 2. Damped-Spring Variable Typography (active once entrance completes)
       if (entranceDoneRef.current) {
         const nodes = charNodesRef.current;
         for (let i = 0; i < nodes.length; i++) {
           const node = nodes[i];
-          // Live viewport Y computed from cached docY - scrollY (ZERO getBoundingClientRect!)
           const liveY = node.docY - scrollY;
 
           const targets = computeCharFieldTargets({
@@ -469,14 +374,10 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         }
       }
 
-      // 3. Sharp subtle hairline tick on the SCROLL ↓ arrow
       if (scrollArrowRef.current) {
         const cycle = (timeSec * 0.9) % 1;
-        // Sharp expo impulse tick (0 -> 3.5px -> 0)
         const impulse =
-          cycle < 0.25
-            ? Math.sin((cycle / 0.25) * Math.PI) * 3.5
-            : 0;
+          cycle < 0.25 ? Math.sin((cycle / 0.25) * Math.PI) * 3.5 : 0;
         scrollArrowRef.current.style.transform = `translate3d(0, ${impulse.toFixed(2)}px, 0)`;
       }
     };
@@ -487,13 +388,12 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       window.cancelAnimationFrame(rafId);
       observer.disconnect();
     };
-  }, [fluxRings]);
+  }, []);
 
   const handleScrollToAct2 = () => {
     motionEngine.scrollTo('#act-2');
   };
 
-  // Split scroll cue around the arrow so we can tick the arrow subtly without changing locked copy
   const scrollParts = CONTENT.act1.scrollCue.split('↓');
 
   return (
@@ -502,84 +402,22 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
       id="act-1"
       data-act="1"
       data-act-ink="dark"
-      className="relative min-h-[100svh] w-full bg-[#F6F3EB] text-[#111114] flex flex-col justify-between overflow-hidden px-4 sm:px-6 md:px-10 pt-16 sm:pt-20 pb-20 sm:pb-20 border-b border-[#111114]"
+      className="relative min-h-[100svh] w-full bg-[#F6F3EB] text-[#111114] flex flex-col justify-between overflow-hidden px-4 sm:px-6 md:px-10 pt-16 sm:pt-20 pb-8 sm:pb-10"
     >
-      {/* Parametric 14-contour Magnetic Flux SVG Field (Right-weighted Swiss asymmetry) */}
+      {/* Huge Sculptural 3D Optical Plasma Toroid (Right-Weighted Swiss Gallery Asymmetry) */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-16 bottom-28 flex items-center justify-end pr-0 md:pr-[4vw]"
+        ref={toroidWrapRef}
+        className="pointer-events-none absolute inset-y-4 right-0 left-0 sm:left-[26%] md:left-[32%] flex items-center justify-center z-[2]"
         aria-hidden="true"
       >
-        <svg
-          ref={svgRef}
-          viewBox="0 0 900 900"
-          className="w-[96vw] max-w-[740px] sm:w-[74vw] md:w-[58vw] lg:w-[50vw] h-full max-h-[72svh]"
-          data-testid="act1-flux-svg"
-        >
-          {/* Magnetic axis calibration crosshairs (invisible 150M K X-ray center) */}
-          <line
-            x1="562"
-            y1="90"
-            x2="562"
-            y2="810"
-            stroke="#111114"
-            strokeOpacity="0.14"
-            strokeWidth="1"
-            strokeDasharray="4 6"
-          />
-          <line
-            x1="210"
-            y1="450"
-            x2="830"
-            y2="450"
-            stroke="#111114"
-            strokeOpacity="0.14"
-            strokeWidth="1"
-            strokeDasharray="4 6"
-          />
-
-          {/* 14 Nested D-shaped / Bean-shaped Magnetic Flux Contours */}
-          <g data-flux-group="contours">
-            {fluxRings.map((ring, idx) => (
-              <path
-                key={ring.index}
-                ref={(el) => {
-                  fluxPathRefs.current[idx] = el;
-                }}
-                d={initialPaths[idx]}
-                fill="none"
-                stroke={ring.stroke}
-                strokeOpacity={ring.baseOpacity}
-                strokeWidth="1.4"
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          </g>
-
-          {/* Exact optical core aperture reticle with magnetic equilibrium lag */}
-          <g ref={coreGroupRef} data-testid="act1-core-reticle">
-            <circle
-              cx="562"
-              cy="450"
-              r="5"
-              fill="none"
-              stroke="#FF1F71"
-              strokeWidth="1.5"
-            />
-            <line x1="550" y1="450" x2="574" y2="450" stroke="#111114" strokeWidth="1" />
-            <line x1="562" y1="438" x2="562" y2="462" stroke="#111114" strokeWidth="1" />
-          </g>
-        </svg>
+        <Act1Toroid3D className="w-[115vw] h-[78svh] sm:w-full sm:h-[88svh] max-w-[920px] max-h-[820px]" />
       </div>
 
-      {/* Top Structural Eyebrow Strip */}
-      <div ref={eyebrowRef} className="relative z-10 w-full border-t border-[#111114]/25 pt-3">
-        <p className="font-mono-lab text-[10px] sm:text-xs tracking-[0.08em] text-[#111114]">
-          {CONTENT.act1.eyebrow}
-        </p>
-      </div>
+      {/* Top Spacer preserving clean Swiss breathing room under fixed top-left badge */}
+      <div className="h-4 shrink-0" aria-hidden="true" />
 
-      {/* Monumental Display Headline — Anchored with Swiss Negative Space */}
-      <div className="relative z-10 my-auto py-8 sm:py-12 md:py-14">
+      {/* Monumental Display Headline — Anchored Left with Dramatic Contrast */}
+      <div className="relative z-10 my-auto py-6 sm:py-10">
         <h1 className="hero-headline k-font-bricolage uppercase tracking-tight doppler-heading doppler-shear">
           {CONTENT.act1.headlineLines.map((line, idx) => (
             <span
@@ -606,19 +444,16 @@ export const Act1Hero: React.FC<Act1HeroProps> = ({ revealNonce }) => {
         </h1>
       </div>
 
-      {/* Bottom 1px Architectural Footer Strip */}
+      {/* Bottom Right ONLY: Crisp High-Contrast SCROLL ↓ 656.28nm Action */}
       <div
         ref={footerRef}
-        className="relative z-10 w-full border-t border-[#111114] pt-3.5 sm:pt-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3"
+        className="relative z-10 w-full flex items-center justify-end"
       >
-        <p className="font-mono-lab text-[11px] sm:text-xs md:text-[13px] tracking-[0.06em] text-[#111114] max-w-xl">
-          {CONTENT.act1.captionLeft}
-        </p>
         <button
           type="button"
           onClick={handleScrollToAct2}
           data-testid="act1-scroll-cue"
-          className="font-mono-lab text-[11px] sm:text-xs tracking-[0.08em] text-[#111114] whitespace-nowrap shrink-0 w-fit sm:mr-8 border border-[#111114] px-3 py-1.5 min-h-[40px] arch-surface bg-[#F6F3EB] cursor-pointer inline-flex items-center gap-1.5"
+          className="font-mono-lab text-[11px] sm:text-xs font-bold tracking-[0.08em] text-[#F6F3EB] whitespace-nowrap shrink-0 w-fit mr-4 sm:mr-8 border border-[#111114] px-3.5 py-2 min-h-[40px] arch-surface bg-[#111114] hover:bg-[#FF1F71] hover:border-[#FF1F71] cursor-pointer inline-flex items-center gap-1.5 chrome-ink-transition"
         >
           <span>{scrollParts[0].trim()}</span>
           <span
